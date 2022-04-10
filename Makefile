@@ -10,6 +10,8 @@ VERIBLE_URL := https://github.com/chipsalliance/verible/releases/download/$(VERI
 VERIBLE_INSTALL_META := build/meta/verible-$(VERIBLE_VERSION)
 VERIBLE_INSTALL_ROOT := build/verible
 
+SV_SOURCES := $(shell find boards -name '*.sv')
+
 .PHONY: all
 all: $(OSS_CAD_INSTALL_META) $(VERIBLE_INSTALL_META)
 
@@ -27,3 +29,12 @@ $(VERIBLE_INSTALL_META): | build/meta $(VERIBLE_INSTALL_ROOT)
 
 build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT):
 	mkdir -p $@
+
+.PHONY: check
+check: $(VERIBLE_INSTALL_META) $(OSS_CAD_INSTALL_META)
+	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-lint $(SV_SOURCES)
+	./scripts/verible-format-check.sh $(SV_SOURCES)
+
+.PHONY: format
+format: $(VERIBLE_INSTALL_META)
+	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-format --inplace $(SV_SOURCES)
