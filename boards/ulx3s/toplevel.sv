@@ -3,6 +3,6 @@ module toplevel (
     output logic [7:0] led
 );
 
-  assign led = {btn[1], 7'0};
+  assign led[7:0] = {btn[1], 7'b0};
 
 endmodule : toplevel
