@@ -34,7 +34,7 @@ build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s:
 
 .PHONY: check
 check: $(VERIBLE_INSTALL_META) $(OSS_CAD_INSTALL_META)
-	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-lint $(SV_SOURCES)
+	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-lint --ruleset all $(SV_SOURCES)
 	./scripts/verible-format-check.sh $(SV_SOURCES)
 
 .PHONY: format
