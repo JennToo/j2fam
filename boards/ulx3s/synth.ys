@@ -1,2 +1,4 @@
 read_verilog -sv boards/ulx3s/toplevel.sv
-synth_ecp5 -noccu2 -nomux -nodram -json build/ulx3s/yosys_output.json
+read_verilog -sv src/*.sv
+
+synth_ecp5 -top toplevel -noccu2 -nomux -nodram -json build/ulx3s/yosys_output.json

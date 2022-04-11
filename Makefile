@@ -12,7 +12,7 @@ VERIBLE_URL := https://github.com/chipsalliance/verible/releases/download/$(VERI
 VERIBLE_INSTALL_META := build/meta/verible-$(VERIBLE_VERSION)
 VERIBLE_INSTALL_ROOT := build/verible
 
-SV_SOURCES := $(shell find boards -name '*.sv')
+SV_SOURCES := $(shell find boards src -name '*.sv')
 
 .PHONY: all
 all: $(OSS_CAD_INSTALL_META) $(VERIBLE_INSTALL_META)
@@ -41,14 +41,17 @@ check: $(VERIBLE_INSTALL_META) $(OSS_CAD_INSTALL_META)
 format: $(VERIBLE_INSTALL_META)
 	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-format --inplace $(SV_SOURCES)
 
-build/ulx3s/yosys_output.json: $(SV_SOURCES) $(OSS_CAD_INSTALL_META) | build/ulx3s
-	$(OSS_CAD_CMD) yosys boards/ulx3s/synth.ys
+build/ulx3s/yosys_output.json: boards/ulx3s/synth.ys $(SV_SOURCES) $(OSS_CAD_INSTALL_META) | build/ulx3s
+	$(OSS_CAD_CMD) yosys $<
 
-build/ulx3s/out.config: build/ulx3s/yosys_output.json
+build/ulx3s/out.config: build/ulx3s/yosys_output.json boards/ulx3s/ulx3s_v20.lpf
 	$(OSS_CAD_CMD) nextpnr-ecp5 --85k --json $< \
 		--lpf boards/ulx3s/ulx3s_v20.lpf \
 		--package CABGA381 \
 		--textcfg $@
+
+.PHONY: ulx3s-bitstream
+ulx3s-bitstream: build/ulx3s/stream.bit
 
 build/ulx3s/stream.bit: build/ulx3s/out.config
 	$(OSS_CAD_CMD) ecppack $< $@
