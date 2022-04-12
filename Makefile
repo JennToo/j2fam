@@ -17,6 +17,9 @@ CATCH_URL := https://github.com/catchorg/Catch2/releases/download/v$(CATCH_VERSI
 CATCH_HEADER := build/catch.hpp
 
 SV_SOURCES := $(shell find boards src -name '*.sv')
+CPP_SOURCES := $(shell find test -name '*.cpp')
+HPP_SOURCES := $(shell find test -name '*.hpp')
+TEST_LIB_SOURCES := $(shell find test/lib -name '*.cpp')
 
 .PHONY: all
 all: $(OSS_CAD_INSTALL_META) $(VERIBLE_INSTALL_META)
@@ -47,6 +50,8 @@ check: $(VERIBLE_INSTALL_META) $(OSS_CAD_INSTALL_META)
 .PHONY: format
 format: $(VERIBLE_INSTALL_META)
 	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-format --inplace $(SV_SOURCES)
+	clang-format -i $(CPP_SOURCES)
+	clang-format -i $(HPP_SOURCES)
 
 build/ulx3s/yosys_output.json: boards/ulx3s/synth.ys $(SV_SOURCES) $(OSS_CAD_INSTALL_META) | build/ulx3s
 	$(OSS_CAD_CMD) yosys $<
@@ -74,8 +79,11 @@ test: test-cpu
 test-cpu: build/tests/test_cpu/obj_dir/Vcpu
 	build/tests/test_cpu/obj_dir/Vcpu
 
-build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER)
+build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES)
 	mkdir -p $(@D)
 	+$(OSS_CAD_CMD) \
 		cd $(@D)/.. && \
-		verilator --cc $(abspath src/cpu.sv) --exe $(abspath test/test_cpu.cpp) --build -CFLAGS -I$(abspath build)
+		verilator --cc $(abspath src/cpu.sv) --exe \
+		$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
+		$(abspath test/test_cpu.cpp) \
+		--build -CFLAGS '-I$(abspath build) -I$(abspath test/lib)'
