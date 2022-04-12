@@ -12,6 +12,10 @@ VERIBLE_URL := https://github.com/chipsalliance/verible/releases/download/$(VERI
 VERIBLE_INSTALL_META := build/meta/verible-$(VERIBLE_VERSION)
 VERIBLE_INSTALL_ROOT := build/verible
 
+CATCH_VERSION := 2.13.8
+CATCH_URL := https://github.com/catchorg/Catch2/releases/download/v$(CATCH_VERSION)/catch.hpp
+CATCH_HEADER := build/catch.hpp
+
 SV_SOURCES := $(shell find boards src -name '*.sv')
 
 .PHONY: all
@@ -28,6 +32,9 @@ $(VERIBLE_INSTALL_META): | build/meta $(VERIBLE_INSTALL_ROOT)
 	mkdir -p $(VERIBLE_INSTALL_ROOT)
 	curl -L --fail $(VERIBLE_URL) | tar -C $(VERIBLE_INSTALL_ROOT) -xzf - --strip-components=1
 	touch $@
+
+$(CATCH_HEADER): | build
+	curl -L --fail -o $@ $(CATCH_URL)
 
 build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s:
 	mkdir -p $@
@@ -59,3 +66,16 @@ build/ulx3s/stream.bit: build/ulx3s/out.config
 .PHONY: ulx3s
 ulx3s: build/ulx3s/stream.bit
 	$(OSS_CAD_CMD) fujprog $<
+
+.PHONY: test
+test: test-cpu
+
+.PHONY: test-cpu
+test-cpu: build/tests/test_cpu/obj_dir/Vcpu
+	build/tests/test_cpu/obj_dir/Vcpu
+
+build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER)
+	mkdir -p $(@D)
+	+$(OSS_CAD_CMD) \
+		cd $(@D)/.. && \
+		verilator --cc $(abspath src/cpu.sv) --exe $(abspath test/test_cpu.cpp) --build -CFLAGS -I$(abspath build)
