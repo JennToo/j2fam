@@ -14,12 +14,13 @@ module cpu #(
 
   // TODO: Size should be based on divider
   logic [7:0] clock_divider;
-  logic clock_ready;
+
+  reg clock_ready;
 
   // TODO: Hacks just to get something to synthesize
   assign data_o = clock_divider;
 
-  always @(posedge clock_i) begin
+  always_ff @(posedge clock_i) begin
     if (clock_divider == CLOCK_DIVIDER - 1) begin
       clock_divider <= 0;
       clock_ready   <= 1;

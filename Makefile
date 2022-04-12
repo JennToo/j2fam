@@ -83,7 +83,7 @@ build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) 
 	mkdir -p $(@D)
 	+$(OSS_CAD_CMD) \
 		cd $(@D)/.. && \
-		verilator --cc $(abspath src/cpu.sv) --exe \
+		verilator --trace --cc $(abspath src/cpu.sv) --exe \
 		$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
 		$(abspath test/test_cpu.cpp) \
 		--build -CFLAGS '-I$(abspath build) -I$(abspath test/lib)'
