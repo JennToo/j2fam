@@ -16,15 +16,16 @@ module cpu #(
   logic [7:0] clock_divider;
   logic clock_ready;
 
-  assign clock_ready = (clock_divider == CLOCK_DIVIDER - 1);
   // TODO: Hacks just to get something to synthesize
   assign data_o = clock_divider;
 
   always @(posedge clock_i) begin
-    if (clock_ready) begin
+    if (clock_divider == CLOCK_DIVIDER - 1) begin
       clock_divider <= 0;
+      clock_ready   <= 1;
     end else begin
       clock_divider <= clock_divider + 1;
+      clock_ready   <= 0;
     end
   end
 
