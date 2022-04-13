@@ -21,7 +21,10 @@ module cpu #(
   assign data_o = clock_divider;
 
   always_ff @(posedge clock_i) begin
-    if (clock_divider == CLOCK_DIVIDER - 1) begin
+    if (reset_i == 1) begin
+      clock_ready   <= 0;
+      clock_divider <= 0;
+    end else if (clock_divider == CLOCK_DIVIDER - 1) begin
       clock_divider <= 0;
       clock_ready   <= 1;
     end else begin

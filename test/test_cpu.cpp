@@ -21,18 +21,24 @@ struct ClockDividerInvariant {
 };
 
 TEST_CASE("Test CPU") {
-  Vcpu instance;
-  instance.clock_i = 1;
-  instance.reset_i = 1;
-  instance.eval();
+  Verilated::traceEverOn(true);
+
+  Driver<Vcpu> driver("build/tests/test_cpu/trace.vcd");
+
+  driver.instance.reset_i = 1;
+  driver.run_cycles(1);
+  driver.instance.reset_i = 0;
+  driver.run_cycles(1);
 
   ClockDividerInvariant invariant;
 
-  REQUIRE(instance.data_o == 0);
-  invariant.check(instance);
+  REQUIRE(driver.instance.data_o == 1);
+  invariant.check(driver.instance);
 
-  run_cycles(instance, 1);
+  driver.run_cycles(1);
 
-  REQUIRE(instance.data_o == 1);
-  invariant.check(instance);
+  REQUIRE(driver.instance.data_o == 2);
+  invariant.check(driver.instance);
+
+  driver.run_cycles(12);
 }
