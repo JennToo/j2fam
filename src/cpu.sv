@@ -9,16 +9,15 @@ module cpu #(
 
     output logic [7:0] data_o,
     output logic [15:0] address_o,
-    output logic data_valid_o
+    output logic data_valid_o,
+
+    // Testbench signals
+    output logic clock_ready_o
 );
 
-  // TODO: Size should be based on divider
   logic [7:0] clock_divider;
 
-  reg clock_ready;
-
-  // TODO: Hacks just to get something to synthesize
-  assign data_o = clock_divider;
+  logic clock_ready;
 
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
@@ -32,5 +31,7 @@ module cpu #(
       clock_ready   <= 0;
     end
   end
+
+  assign clock_ready_o = clock_ready;
 
 endmodule : cpu

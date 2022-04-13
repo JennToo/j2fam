@@ -7,8 +7,9 @@ module toplevel (
   cpu #(
       .CLOCK_DIVIDER(12)
   ) cpu_instance (
+      .reset_i(btn_i[0]),
       .clock_i(clk_25mhz_i),
-      .data_o (led_o)
+      .clock_ready_o(led_o[0])
   );
 
 endmodule : toplevel

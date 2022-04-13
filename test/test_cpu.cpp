@@ -1,5 +1,4 @@
 #include "Vcpu.h"
-#include "Vcpu___024root.h"
 #include "verilator_drivers.hpp"
 
 #include <catch.hpp>
@@ -17,10 +16,10 @@ struct ClockDividerInvariant : Driver<Vcpu>::Invariant {
       last_clock_ready = global_tick_count;
     } else {
       if (global_tick_count - last_clock_ready == CLOCK_RATIO_DEFAULT) {
-        REQUIRE(instance.rootp->cpu__DOT__clock_ready == 1);
+        REQUIRE(instance.clock_ready_o == 1);
         last_clock_ready = global_tick_count;
       } else {
-        REQUIRE(instance.rootp->cpu__DOT__clock_ready == 0);
+        REQUIRE(instance.clock_ready_o == 0);
       }
     }
   }
@@ -35,13 +34,5 @@ TEST_CASE("Test CPU") {
   driver.instance.reset_i = 1;
   driver.run_cycles(1);
   driver.instance.reset_i = 0;
-  driver.run_cycles(1);
-
-  REQUIRE(driver.instance.data_o == 1);
-
-  driver.run_cycles(1);
-
-  REQUIRE(driver.instance.data_o == 2);
-
   driver.run_cycles(120);
 }
