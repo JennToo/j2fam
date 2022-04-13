@@ -1,13 +1,22 @@
 #pragma once
 
-#include <bits/stdint-uintn.h>
-#include <stdint.h>
-
 #include "verilated_vcd_c.h"
+
+#include <bits/stdint-uintn.h>
+#include <memory>
+#include <stdint.h>
+#include <vector>
 
 const uint64_t TIMESCALE = 100;
 
 template <typename ModuleT> struct Driver {
+  struct Invariant {
+    inline virtual ~Invariant() {}
+    virtual void check(const ModuleT &, uint64_t) = 0;
+  };
+
+  std::vector<std::unique_ptr<Invariant>> invariants;
+
   ModuleT instance;
   VerilatedVcdC traces;
 
@@ -40,8 +49,14 @@ template <typename ModuleT> struct Driver {
       instance.clock_i = 1;
       instance.eval();
       traces.dump(TIMESCALE * (2 * global_tick_count + 1));
-
       global_tick_count++;
+      check_invariants();
+    }
+  }
+
+  void check_invariants() {
+    for (const auto &invariant : invariants) {
+      invariant->check(instance, global_tick_count);
     }
   }
 };
