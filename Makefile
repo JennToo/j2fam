@@ -16,6 +16,9 @@ CATCH_VERSION := 2.13.8
 CATCH_URL := https://github.com/catchorg/Catch2/releases/download/v$(CATCH_VERSION)/catch.hpp
 CATCH_HEADER := build/catch.hpp
 
+ECP5PLL_URL := https://gist.githubusercontent.com/thoughtpolice/b1cec8d45f2741c3726c0cc2ac83d7f2/raw/6dd565cf7bfeee37f00720af008abb47a9405f45/ecp5pll.py
+ECP5PLL_SCRIPT := build/ecp5pll.py
+
 SV_SOURCES := $(shell find boards src -name '*.sv')
 CPP_SOURCES := $(shell find test -name '*.cpp')
 HPP_SOURCES := $(shell find test -name '*.hpp')
@@ -39,6 +42,9 @@ $(VERIBLE_INSTALL_META): | build/meta $(VERIBLE_INSTALL_ROOT)
 $(CATCH_HEADER): | build
 	curl -L --fail -o $@ $(CATCH_URL)
 
+$(ECP5PLL_SCRIPT): | build
+	curl -L --fail -o $@ $(ECP5PLL_URL)
+
 build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s:
 	mkdir -p $@
 
@@ -53,7 +59,8 @@ format: $(VERIBLE_INSTALL_META)
 	clang-format -i $(CPP_SOURCES)
 	clang-format -i $(HPP_SOURCES)
 
-build/ulx3s/yosys_output.json: boards/ulx3s/synth.ys $(SV_SOURCES) $(OSS_CAD_INSTALL_META) | build/ulx3s
+build/ulx3s/yosys_output.json: boards/ulx3s/synth.ys $(SV_SOURCES) \
+                               $(OSS_CAD_INSTALL_META) $(ECP5PLL_SCRIPT) | build/ulx3s
 	$(OSS_CAD_CMD) yosys $<
 
 build/ulx3s/out.config: build/ulx3s/yosys_output.json boards/ulx3s/ulx3s_v20.lpf
