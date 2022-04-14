@@ -44,13 +44,14 @@ module cpu #(
       instruction_stage <= `RESET_STAGE_1;
       address_valid_o <= 1;
       address_o <= 16'hFFFC;
-    end else if (clock_ready) begin
+    end else if (clock_ready == 1) begin
       case (instruction_stage)
         `RESET_STAGE_1: begin
           if (data_valid_i == 1) begin
             instruction_stage <= `RESET_STAGE_2;
             program_counter[7:0] <= data_i;
             address_o <= 16'hFFFD;
+            address_valid_o <= 1;
           end
         end
 
