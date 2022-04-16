@@ -19,6 +19,11 @@ CATCH_HEADER := build/catch.hpp
 ECP5PLL_URL := https://gist.githubusercontent.com/thoughtpolice/b1cec8d45f2741c3726c0cc2ac83d7f2/raw/6dd565cf7bfeee37f00720af008abb47a9405f45/ecp5pll.py
 ECP5PLL_SCRIPT := build/ecp5pll.py
 
+CC65_REMOTE := https://github.com/cc65/cc65.git
+CC65_COMMIT := 06d423d503e92ff22f6982baeab6dd30993841f0
+CC65_BUILD_META := build/meta/cc65
+CC65_PREFIX := build/cc65/bin/
+
 SV_SOURCES := $(shell find boards src -name '*.sv')
 CPP_SOURCES := $(shell find test -name '*.cpp')
 HPP_SOURCES := $(shell find test -name '*.hpp')
@@ -44,6 +49,14 @@ $(CATCH_HEADER): | build
 
 $(ECP5PLL_SCRIPT): | build
 	curl -L --fail -o $@ $(ECP5PLL_URL)
+
+$(CC65_BUILD_META): | build/meta
+	rm -rf build/cc65
+	git clone $(CC65_REMOTE) build/cc65
+	cd build/cc65 && \
+		git checkout $(CC65_COMMIT)
+	$(MAKE) -C build/cc65
+	touch $@
 
 build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s:
 	mkdir -p $@

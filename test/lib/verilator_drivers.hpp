@@ -7,15 +7,20 @@
 #include <stdint.h>
 #include <vector>
 
-const uint64_t TIMESCALE = 100;
+const uint64_t TIMESCALE = 46560 / 2;
 
 template <typename ModuleT> struct Driver {
   struct Invariant {
     inline virtual ~Invariant() {}
     virtual void check(const ModuleT &, uint64_t) = 0;
   };
+  struct Listener {
+    inline virtual ~Listener() {}
+    virtual void on_cycle(ModuleT &, uint64_t) = 0;
+  };
 
   std::vector<std::unique_ptr<Invariant>> invariants;
+  std::vector<std::shared_ptr<Listener>> listeners;
 
   ModuleT instance;
   VerilatedVcdC traces;
@@ -51,12 +56,19 @@ template <typename ModuleT> struct Driver {
       traces.dump(TIMESCALE * (2 * global_tick_count + 1));
       global_tick_count++;
       check_invariants();
+      notify_listeners();
     }
   }
 
   void check_invariants() {
     for (const auto &invariant : invariants) {
       invariant->check(instance, global_tick_count);
+    }
+  }
+
+  void notify_listeners() {
+    for (const auto &listener : listeners) {
+      listener->on_cycle(instance, global_tick_count);
     }
   }
 };
