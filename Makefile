@@ -29,6 +29,9 @@ CPP_SOURCES := $(shell find test -name '*.cpp')
 HPP_SOURCES := $(shell find test -name '*.hpp')
 TEST_LIB_SOURCES := $(shell find test/lib -name '*.cpp')
 
+ASSEMBLY_PAYLOAD_SOURCES := $(shell find test/payloads -name '*.s')
+ASSEMBLY_PAYLOAD_BINARIES := $(ASSEMBLY_PAYLOAD_SOURCES:test/payloads/%.s=build/payloads/%)
+
 .PHONY: all
 all: $(OSS_CAD_INSTALL_META) $(VERIBLE_INSTALL_META)
 
@@ -58,7 +61,7 @@ $(CC65_BUILD_META): | build/meta
 	$(MAKE) -C build/cc65
 	touch $@
 
-build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s:
+build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s build/payloads:
 	mkdir -p $@
 
 .PHONY: check
@@ -99,7 +102,7 @@ test: test-cpu
 test-cpu: build/tests/test_cpu/obj_dir/Vcpu
 	build/tests/test_cpu/obj_dir/Vcpu
 
-build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES)
+build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_BINARIES)
 	mkdir -p $(@D)
 	+$(OSS_CAD_CMD) \
 		cd $(@D)/.. && \
@@ -107,3 +110,7 @@ build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) 
 		$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
 		$(abspath test/test_cpu.cpp) \
 		--build -CFLAGS '-I$(abspath build) -I$(abspath test/lib)'
+
+$(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg | build/payloads
+	$(CC65_PREFIX)ca65 -g -o $@.o $<
+	$(CC65_PREFIX)ld65 -C test/payloads/linker_script.cfg -o $@ $@.o
