@@ -55,6 +55,9 @@ module cpu #(
   logic [ 2:0] instruction_stage;
   logic [ 7:0] current_instruction;
 
+  logic [15:0] incremented_program_counter;
+  assign incremented_program_counter = program_counter + 1;
+
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
       instruction_stage <= `RESET_STAGE_1;
@@ -78,8 +81,8 @@ module cpu #(
                 // Do nothing
               end
               `OP_LDA_IMM: begin
-                program_counter <= program_counter + 1;
-                address_o <= program_counter + 1;
+                program_counter <= incremented_program_counter;
+                address_o <= incremented_program_counter;
                 address_valid_o <= 1;
               end
 
@@ -96,16 +99,16 @@ module cpu #(
           case (current_instruction)
             `OP_NOP: begin
               instruction_stage <= 0;
-              program_counter <= program_counter + 1;
-              address_o <= program_counter + 1;
+              program_counter <= incremented_program_counter;
+              address_o <= incremented_program_counter;
               address_valid_o <= 1;
             end
             `OP_LDA_IMM: begin
               if (data_valid_i) begin
                 accumulator <= data_i;
                 instruction_stage <= 0;
-                program_counter <= program_counter + 1;
-                address_o <= program_counter + 1;
+                program_counter <= incremented_program_counter;
+                address_o <= incremented_program_counter;
                 address_valid_o <= 1;
               end
             end
