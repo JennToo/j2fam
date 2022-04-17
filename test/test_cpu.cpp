@@ -106,4 +106,10 @@ TEST_CASE("Test CPU") {
     run_to_end(driver, bus_emulator, 120);
     REQUIRE(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
   }
+  SECTION("Check LDA immediate") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_imm");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.accumulator_o == 42);
+  }
 }

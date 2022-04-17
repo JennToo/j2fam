@@ -1,4 +1,5 @@
 `define OP_NOP 8'hEA
+`define OP_LDA_IMM 8'hA9
 
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
@@ -59,12 +60,35 @@ module cpu #(
       instruction_stage <= `RESET_STAGE_1;
       address_valid_o <= 1;
       address_o <= 16'hFFFC;
+      accumulator <= 0;
+      index_x <= 0;
+      index_y <= 0;
+      stack_pointer <= 0;
+      // Based on W65C02, but close enough for now
+      status <= 8'bXX1101XX;
     end else if (clock_ready == 1) begin
       case (instruction_stage)
         0: begin
           if (data_valid_i == 1) begin
             current_instruction <= data_i;
             instruction_stage   <= 1;
+
+            case (data_i)
+              `OP_NOP: begin
+                // Do nothing
+              end
+              `OP_LDA_IMM: begin
+                program_counter <= program_counter + 1;
+                address_o <= program_counter + 1;
+                address_valid_o <= 1;
+              end
+
+              default begin
+`ifdef SIMULATION
+                $error("Unhandled instruction in stage 0: %d", current_instruction);
+`endif  // SIMULATION
+              end
+            endcase
           end
         end
 
@@ -75,6 +99,15 @@ module cpu #(
               program_counter <= program_counter + 1;
               address_o <= program_counter + 1;
               address_valid_o <= 1;
+            end
+            `OP_LDA_IMM: begin
+              if (data_valid_i) begin
+                accumulator <= data_i;
+                instruction_stage <= 0;
+                program_counter <= program_counter + 1;
+                address_o <= program_counter + 1;
+                address_valid_o <= 1;
+              end
             end
             default begin
 `ifdef SIMULATION
