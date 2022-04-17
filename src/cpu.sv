@@ -9,17 +9,24 @@ module cpu #(
     input logic [7:0] data_i,
     input logic data_valid_i,
 
+`ifdef SIMULATION
+    output logic clock_ready_o,
+    output logic [15:0] program_counter_o,
+    output logic [7:0] accumulator_o,
+    output logic [7:0] index_x_o,
+    output logic [7:0] index_y_o,
+    output logic [7:0] status_o,
+    output logic [7:0] stack_pointer_o,
+`endif  // SIMULATION
+
     output logic [7:0] data_o,
     output logic [15:0] address_o,
     output logic address_valid_o,
-    output logic data_valid_o,
-
-    // Testbench signals
-    output logic clock_ready_o
+    output logic data_valid_o
 );
 
   logic [7:0] clock_divider;
-  assign clock_ready_o = clock_ready;
+
   logic clock_ready;
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
@@ -37,8 +44,14 @@ module cpu #(
   `define RESET_STAGE_1 6
   `define RESET_STAGE_2 7
 
-  logic [ 2:0] instruction_stage;
   logic [15:0] program_counter;
+  logic [ 7:0] accumulator;
+  logic [ 7:0] index_x;
+  logic [ 7:0] index_y;
+  logic [ 7:0] status;
+  logic [ 7:0] stack_pointer;
+
+  logic [ 2:0] instruction_stage;
   logic [ 7:0] current_instruction;
 
   always_ff @(posedge clock_i) begin
@@ -98,4 +111,13 @@ module cpu #(
     end
   end
 
+`ifdef SIMULATION
+  assign clock_ready_o = clock_ready;
+  assign program_counter_o = program_counter;
+  assign accumulator_o = accumulator;
+  assign index_x_o = index_x;
+  assign index_y_o = index_y;
+  assign status_o = status;
+  assign stack_pointer_o = stack_pointer;
+`endif  // SIMULATION
 endmodule : cpu
