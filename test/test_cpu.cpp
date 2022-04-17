@@ -92,7 +92,7 @@ void run_to_end(Driver<Vcpu> &driver, std::shared_ptr<BusEmulator> bus_emulator,
 TEST_CASE("Test CPU") {
   Verilated::traceEverOn(true);
 
-  Driver<Vcpu> driver("build/tests/test_cpu/trace.vcd");
+  Driver<Vcpu> driver("build/tests/test_cpu/");
   driver.invariants.push_back(std::make_unique<ClockDividerInvariant>());
   auto bus_emulator = std::make_shared<BusEmulator>();
   driver.listeners.push_back(bus_emulator);

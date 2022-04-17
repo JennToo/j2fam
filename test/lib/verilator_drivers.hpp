@@ -4,6 +4,7 @@
 
 #include <bits/stdint-uintn.h>
 #include <memory>
+#include <sstream>
 #include <stdint.h>
 #include <vector>
 
@@ -28,8 +29,13 @@ template <typename ModuleT> struct Driver {
   uint64_t global_tick_count = 0;
 
   Driver(const char *vcd_dest) {
+    static unsigned vcd_counter = 0;
+    std::ostringstream oss;
+    oss << vcd_dest << "trace_" << vcd_counter << ".vcd";
+    vcd_counter++;
+
     instance.trace(&traces, 2);
-    traces.open(vcd_dest);
+    traces.open(oss.str().c_str());
 
     instance.clock_i = 0;
     instance.eval();
