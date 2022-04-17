@@ -1,5 +1,6 @@
 `define OP_NOP 8'hEA
 `define OP_LDA_IMM 8'hA9
+`define OP_LDA_ZP 8'hA5
 
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
@@ -85,10 +86,15 @@ module cpu #(
                 address_o <= incremented_program_counter;
                 address_valid_o <= 1;
               end
+              `OP_LDA_ZP: begin
+                program_counter <= incremented_program_counter;
+                address_o <= incremented_program_counter;
+                address_valid_o <= 1;
+              end
 
               default begin
 `ifdef SIMULATION
-                $error("Unhandled instruction in stage 0: %d", current_instruction);
+                $error("Unhandled instruction in stage 0: %d", data_i);
 `endif  // SIMULATION
               end
             endcase
@@ -104,6 +110,32 @@ module cpu #(
               address_valid_o <= 1;
             end
             `OP_LDA_IMM: begin
+              if (data_valid_i) begin
+                accumulator <= data_i;
+                instruction_stage <= 0;
+                program_counter <= incremented_program_counter;
+                address_o <= incremented_program_counter;
+                address_valid_o <= 1;
+              end
+            end
+            `OP_LDA_ZP: begin
+              if (data_valid_i) begin
+                instruction_stage <= 2;
+                address_o <= {8'b0, data_i};
+                address_valid_o <= 1;
+              end
+            end
+            default begin
+`ifdef SIMULATION
+              $error("Unhandled instruction in stage 1: %d", current_instruction);
+`endif  // SIMULATION
+            end
+          endcase
+        end
+
+        2: begin
+          case (current_instruction)
+            `OP_LDA_ZP: begin
               if (data_valid_i) begin
                 accumulator <= data_i;
                 instruction_stage <= 0;
