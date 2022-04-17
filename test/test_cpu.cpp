@@ -119,4 +119,30 @@ TEST_CASE("Test CPU") {
     REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     REQUIRE(driver.instance.accumulator_o == 74);
   }
+  SECTION("Check LDX immediate") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_imm");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.index_x_o == 42);
+  }
+  SECTION("Check LDX zeropage") {
+    bus_emulator->memory[0x42] = 74;
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_zp");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.index_x_o == 74);
+  }
+  SECTION("Check LDY immediate") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldy_imm");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.index_y_o == 42);
+  }
+  SECTION("Check LDY zeropage") {
+    bus_emulator->memory[0x42] = 74;
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldy_zp");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.index_y_o == 74);
+  }
 }

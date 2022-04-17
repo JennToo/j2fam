@@ -1,6 +1,10 @@
 `define OP_NOP 8'hEA
 `define OP_LDA_IMM 8'hA9
 `define OP_LDA_ZP 8'hA5
+`define OP_LDX_IMM 8'hA2
+`define OP_LDX_ZP 8'hA6
+`define OP_LDY_IMM 8'hA0
+`define OP_LDY_ZP 8'hA4
 
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
@@ -81,12 +85,12 @@ module cpu #(
               `OP_NOP: begin
                 // Do nothing
               end
-              `OP_LDA_IMM: begin
+              `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
                 program_counter <= incremented_program_counter;
                 address_o <= incremented_program_counter;
                 address_valid_o <= 1;
               end
-              `OP_LDA_ZP: begin
+              `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
                 program_counter <= incremented_program_counter;
                 address_o <= incremented_program_counter;
                 address_valid_o <= 1;
@@ -109,16 +113,22 @@ module cpu #(
               address_o <= incremented_program_counter;
               address_valid_o <= 1;
             end
-            `OP_LDA_IMM: begin
+            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
               if (data_valid_i) begin
-                accumulator <= data_i;
+                case (current_instruction)
+                  `OP_LDA_IMM: accumulator <= data_i;
+                  `OP_LDX_IMM: index_x <= data_i;
+                  `OP_LDY_IMM: index_y <= data_i;
+                  default: begin
+                  end
+                endcase
                 instruction_stage <= 0;
                 program_counter <= incremented_program_counter;
                 address_o <= incremented_program_counter;
                 address_valid_o <= 1;
               end
             end
-            `OP_LDA_ZP: begin
+            `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
               if (data_valid_i) begin
                 instruction_stage <= 2;
                 address_o <= {8'b0, data_i};
@@ -135,9 +145,15 @@ module cpu #(
 
         2: begin
           case (current_instruction)
-            `OP_LDA_ZP: begin
+            `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
               if (data_valid_i) begin
-                accumulator <= data_i;
+                case (current_instruction)
+                  `OP_LDA_ZP: accumulator <= data_i;
+                  `OP_LDX_ZP: index_x <= data_i;
+                  `OP_LDY_ZP: index_y <= data_i;
+                  default: begin
+                  end
+                endcase
                 instruction_stage <= 0;
                 program_counter <= incremented_program_counter;
                 address_o <= incremented_program_counter;
