@@ -1,3 +1,5 @@
+`define OP_NOP 8'hEA
+
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
 ) (
@@ -46,6 +48,29 @@ module cpu #(
       address_o <= 16'hFFFC;
     end else if (clock_ready == 1) begin
       case (instruction_stage)
+        0: begin
+          if (data_valid_i == 1) begin
+            current_instruction <= data_i;
+            instruction_stage   <= 1;
+          end
+        end
+
+        1: begin
+          case (current_instruction)
+            `OP_NOP: begin
+              instruction_stage <= 0;
+              program_counter <= program_counter + 1;
+              address_o <= program_counter + 1;
+              address_valid_o <= 1;
+            end
+            default begin
+`ifdef SIMULATION
+              $error("Unhandled instruction in stage 1: %d", current_instruction);
+`endif  // SIMULATION
+            end
+          endcase
+        end
+
         `RESET_STAGE_1: begin
           if (data_valid_i == 1) begin
             instruction_stage <= `RESET_STAGE_2;
@@ -65,6 +90,9 @@ module cpu #(
         end
 
         default begin
+`ifdef SIMULATION
+          $error("Unhandled instruction_stage");
+`endif  // SIMULATION
         end
       endcase
     end

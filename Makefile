@@ -106,10 +106,16 @@ build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) 
 	mkdir -p $(@D)
 	+$(OSS_CAD_CMD) \
 		cd $(@D)/.. && \
-		verilator --trace --cc $(abspath src/cpu.sv) --exe \
-		$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
-		$(abspath test/test_cpu.cpp) \
-		--build -CFLAGS '-I$(abspath build) -I$(abspath test/lib)'
+		verilator \
+			--trace \
+			--cc $(abspath src/cpu.sv) \
+			--exe \
+			$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
+			$(abspath test/test_cpu.cpp) \
+			-DSIMULATION \
+			--build \
+			-CFLAGS '-I$(abspath build) -I$(abspath test/lib) -g' \
+			-LDFLAGS '-g'
 
 $(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg | build/payloads
 	$(CC65_PREFIX)ca65 -g -o $@.o $<
