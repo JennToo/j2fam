@@ -119,6 +119,14 @@ TEST_CASE("Test CPU") {
     REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     REQUIRE(driver.instance.accumulator_o == 74);
   }
+  SECTION("Check LDA zeropage,X") {
+    bus_emulator->memory[0x42] = 74;
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_zpx");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(driver.instance.accumulator_o == 74);
+    REQUIRE(bus_emulator->test_clock_ready_count ==
+            2 + 4 + RESET_CYCLE_OVERHEAD);
+  }
   SECTION("Check LDX immediate") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_imm");
     run_to_end(driver, bus_emulator, 120);

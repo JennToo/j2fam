@@ -1,6 +1,7 @@
 `define OP_NOP 8'hEA
 `define OP_LDA_IMM 8'hA9
 `define OP_LDA_ZP 8'hA5
+`define OP_LDA_ZPX 8'hB5
 `define OP_LDX_IMM 8'hA2
 `define OP_LDX_ZP 8'hA6
 `define OP_LDY_IMM 8'hA0
@@ -59,6 +60,7 @@ module cpu #(
 
   logic [ 2:0] instruction_stage;
   logic [ 7:0] current_instruction;
+  logic [ 7:0] alu_result;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = program_counter + 1;
@@ -66,10 +68,13 @@ module cpu #(
   logic [7:0] read_instruction;
   logic [2:0] next_instruction_stage;
   logic increment_and_read_program_counter;
-  logic read_data_zeropage;
+  logic read_zeropage;
   logic data_to_accumulator;
   logic data_to_index_x;
   logic data_to_index_y;
+  logic [7:0] alu_input_a;
+  logic [7:0] alu_input_b;
+  logic [7:0] zeropage_address;
 
   always_comb begin
     // Prevent inferring latches. TODO: Is there a better way to do this?
@@ -78,7 +83,10 @@ module cpu #(
     data_to_accumulator = 0;
     data_to_index_x = 0;
     data_to_index_y = 0;
-    read_data_zeropage = 0;
+    read_zeropage = 0;
+    alu_input_a = 0;
+    alu_input_b = 0;
+    zeropage_address = 0;
 
     if (instruction_stage == 0) begin
       read_instruction = data_i;
@@ -92,7 +100,7 @@ module cpu #(
 
         if (data_valid_i) begin
           case (read_instruction)
-            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
+            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX: begin
               increment_and_read_program_counter = 1;
             end
 
@@ -124,7 +132,15 @@ module cpu #(
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              read_data_zeropage = 1;
+              read_zeropage = 1;
+              zeropage_address = data_i;
+            end
+          end
+          `OP_LDA_ZPX: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 2;
+              alu_input_a = index_x;
+              alu_input_b = data_i;
             end
           end
           default begin
@@ -145,6 +161,28 @@ module cpu #(
               end
             endcase
           end
+          `OP_LDA_ZPX: begin
+            next_instruction_stage = 3;
+            read_zeropage = 1;
+            zeropage_address = alu_result;
+          end
+          default begin
+          end
+        endcase
+      end
+
+      3: begin
+        case (read_instruction)
+          `OP_LDA_ZPX: begin
+            next_instruction_stage = 0;
+            increment_and_read_program_counter = 1;
+            case (current_instruction)
+              `OP_LDA_ZPX: data_to_accumulator = 1;
+              default begin
+              end
+            endcase
+          end
+
           default begin
           end
         endcase
@@ -175,13 +213,15 @@ module cpu #(
         address_o <= incremented_program_counter;
         address_valid_o <= 1;
       end
-      if (read_data_zeropage) begin
-        address_o <= {8'b0, data_i};
+      if (read_zeropage) begin
+        address_o <= {8'b0, zeropage_address};
         address_valid_o <= 1;
       end
       if (data_to_accumulator) accumulator <= data_i;
       if (data_to_index_x) index_x <= data_i;
       if (data_to_index_y) index_y <= data_i;
+
+      alu_result <= alu_input_a + alu_input_b;
 
       case (instruction_stage)
         `RESET_STAGE_1: begin
