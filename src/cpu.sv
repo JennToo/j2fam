@@ -69,9 +69,9 @@ module cpu #(
   logic [2:0] next_instruction_stage;
   logic increment_and_read_program_counter;
   logic read_zeropage;
-  logic data_to_accumulator;
-  logic data_to_index_x;
-  logic data_to_index_y;
+  logic [7:0] next_accumulator;
+  logic [7:0] next_index_x;
+  logic [7:0] next_index_y;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
   logic [7:0] zeropage_address;
@@ -80,9 +80,9 @@ module cpu #(
     // Prevent inferring latches. TODO: Is there a better way to do this?
     next_instruction_stage = instruction_stage;
     increment_and_read_program_counter = 0;
-    data_to_accumulator = 0;
-    data_to_index_x = 0;
-    data_to_index_y = 0;
+    next_accumulator = accumulator;
+    next_index_x = index_x;
+    next_index_y = index_y;
     read_zeropage = 0;
     alu_input_a = 0;
     alu_input_b = 0;
@@ -121,9 +121,9 @@ module cpu #(
               next_instruction_stage = 0;
               increment_and_read_program_counter = 1;
               case (current_instruction)
-                `OP_LDA_IMM: data_to_accumulator = 1;
-                `OP_LDX_IMM: data_to_index_x = 1;
-                `OP_LDY_IMM: data_to_index_y = 1;
+                `OP_LDA_IMM: next_accumulator = data_i;
+                `OP_LDX_IMM: next_index_x = data_i;
+                `OP_LDY_IMM: next_index_y = data_i;
                 default: begin
                 end
               endcase
@@ -154,9 +154,9 @@ module cpu #(
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
             case (current_instruction)
-              `OP_LDA_ZP: data_to_accumulator = 1;
-              `OP_LDX_ZP: data_to_index_x = 1;
-              `OP_LDY_ZP: data_to_index_y = 1;
+              `OP_LDA_ZP: next_accumulator = data_i;
+              `OP_LDX_ZP: next_index_x = data_i;
+              `OP_LDY_ZP: next_index_y = data_i;
               default: begin
               end
             endcase
@@ -177,7 +177,7 @@ module cpu #(
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
             case (current_instruction)
-              `OP_LDA_ZPX: data_to_accumulator = 1;
+              `OP_LDA_ZPX: next_accumulator = data_i;
               default begin
               end
             endcase
@@ -207,7 +207,10 @@ module cpu #(
       status <= 8'bXX1101XX;
     end else if (clock_ready == 1) begin
       current_instruction <= read_instruction;
-      instruction_stage   <= next_instruction_stage;
+      instruction_stage <= next_instruction_stage;
+      accumulator <= next_accumulator;
+      index_x <= next_index_x;
+      index_y <= next_index_y;
       if (increment_and_read_program_counter) begin
         program_counter <= incremented_program_counter;
         address_o <= incremented_program_counter;
@@ -217,9 +220,6 @@ module cpu #(
         address_o <= {8'b0, zeropage_address};
         address_valid_o <= 1;
       end
-      if (data_to_accumulator) accumulator <= data_i;
-      if (data_to_index_x) index_x <= data_i;
-      if (data_to_index_y) index_y <= data_i;
 
       alu_result <= alu_input_a + alu_input_b;
 
