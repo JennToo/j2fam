@@ -63,6 +63,99 @@ module cpu #(
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = program_counter + 1;
 
+  logic [7:0] read_instruction;
+  logic [2:0] next_instruction_stage;
+  logic increment_and_read_program_counter;
+  logic read_data_zeropage;
+  logic data_to_accumulator;
+  logic data_to_index_x;
+  logic data_to_index_y;
+
+  always_comb begin
+    // Prevent inferring latches. TODO: Is there a better way to do this?
+    next_instruction_stage = instruction_stage;
+    increment_and_read_program_counter = 0;
+    data_to_accumulator = 0;
+    data_to_index_x = 0;
+    data_to_index_y = 0;
+    read_data_zeropage = 0;
+
+    if (instruction_stage == 0) begin
+      read_instruction = data_i;
+    end else begin
+      read_instruction = current_instruction;
+    end
+
+    case (instruction_stage)
+      0: begin
+        next_instruction_stage = 1;
+
+        if (data_valid_i) begin
+          case (read_instruction)
+            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
+              increment_and_read_program_counter = 1;
+            end
+
+            default begin
+            end
+          endcase
+        end
+      end
+
+      1: begin
+        case (read_instruction)
+          `OP_NOP: begin
+            next_instruction_stage = 0;
+            increment_and_read_program_counter = 1;
+          end
+          `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_and_read_program_counter = 1;
+              case (current_instruction)
+                `OP_LDA_IMM: data_to_accumulator = 1;
+                `OP_LDX_IMM: data_to_index_x = 1;
+                `OP_LDY_IMM: data_to_index_y = 1;
+                default: begin
+                end
+              endcase
+            end
+          end
+          `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 2;
+              read_data_zeropage = 1;
+            end
+          end
+          default begin
+          end
+        endcase
+      end
+
+      2: begin
+        case (read_instruction)
+          `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
+            next_instruction_stage = 0;
+            increment_and_read_program_counter = 1;
+            case (current_instruction)
+              `OP_LDA_ZP: data_to_accumulator = 1;
+              `OP_LDX_ZP: data_to_index_x = 1;
+              `OP_LDY_ZP: data_to_index_y = 1;
+              default: begin
+              end
+            endcase
+          end
+          default begin
+          end
+        endcase
+      end
+
+      default begin
+      end
+    endcase
+  end
+
+
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
       instruction_stage <= `RESET_STAGE_1;
@@ -75,99 +168,22 @@ module cpu #(
       // Based on W65C02, but close enough for now
       status <= 8'bXX1101XX;
     end else if (clock_ready == 1) begin
+      current_instruction <= read_instruction;
+      instruction_stage   <= next_instruction_stage;
+      if (increment_and_read_program_counter) begin
+        program_counter <= incremented_program_counter;
+        address_o <= incremented_program_counter;
+        address_valid_o <= 1;
+      end
+      if (read_data_zeropage) begin
+        address_o <= {8'b0, data_i};
+        address_valid_o <= 1;
+      end
+      if (data_to_accumulator) accumulator <= data_i;
+      if (data_to_index_x) index_x <= data_i;
+      if (data_to_index_y) index_y <= data_i;
+
       case (instruction_stage)
-        0: begin
-          if (data_valid_i == 1) begin
-            current_instruction <= data_i;
-            instruction_stage   <= 1;
-
-            case (data_i)
-              `OP_NOP: begin
-                // Do nothing
-              end
-              `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
-                program_counter <= incremented_program_counter;
-                address_o <= incremented_program_counter;
-                address_valid_o <= 1;
-              end
-              `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
-                program_counter <= incremented_program_counter;
-                address_o <= incremented_program_counter;
-                address_valid_o <= 1;
-              end
-
-              default begin
-`ifdef SIMULATION
-                $error("Unhandled instruction in stage 0: %d", data_i);
-`endif  // SIMULATION
-              end
-            endcase
-          end
-        end
-
-        1: begin
-          case (current_instruction)
-            `OP_NOP: begin
-              instruction_stage <= 0;
-              program_counter <= incremented_program_counter;
-              address_o <= incremented_program_counter;
-              address_valid_o <= 1;
-            end
-            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
-              if (data_valid_i) begin
-                case (current_instruction)
-                  `OP_LDA_IMM: accumulator <= data_i;
-                  `OP_LDX_IMM: index_x <= data_i;
-                  `OP_LDY_IMM: index_y <= data_i;
-                  default: begin
-                  end
-                endcase
-                instruction_stage <= 0;
-                program_counter <= incremented_program_counter;
-                address_o <= incremented_program_counter;
-                address_valid_o <= 1;
-              end
-            end
-            `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
-              if (data_valid_i) begin
-                instruction_stage <= 2;
-                address_o <= {8'b0, data_i};
-                address_valid_o <= 1;
-              end
-            end
-            default begin
-`ifdef SIMULATION
-              $error("Unhandled instruction in stage 1: %d", current_instruction);
-`endif  // SIMULATION
-            end
-          endcase
-        end
-
-        2: begin
-          case (current_instruction)
-            `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
-              if (data_valid_i) begin
-                case (current_instruction)
-                  `OP_LDA_ZP: accumulator <= data_i;
-                  `OP_LDX_ZP: index_x <= data_i;
-                  `OP_LDY_ZP: index_y <= data_i;
-                  default: begin
-                  end
-                endcase
-                instruction_stage <= 0;
-                program_counter <= incremented_program_counter;
-                address_o <= incremented_program_counter;
-                address_valid_o <= 1;
-              end
-            end
-            default begin
-`ifdef SIMULATION
-              $error("Unhandled instruction in stage 1: %d", current_instruction);
-`endif  // SIMULATION
-            end
-          endcase
-        end
-
         `RESET_STAGE_1: begin
           if (data_valid_i == 1) begin
             instruction_stage <= `RESET_STAGE_2;
@@ -187,9 +203,6 @@ module cpu #(
         end
 
         default begin
-`ifdef SIMULATION
-          $error("Unhandled instruction_stage");
-`endif  // SIMULATION
         end
       endcase
     end
