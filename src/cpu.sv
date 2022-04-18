@@ -7,6 +7,9 @@
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
 
+`define STATUS_ZERO 1
+`define STATUS_NEGATIVE 7
+
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
 ) (
@@ -72,9 +75,12 @@ module cpu #(
   logic [7:0] next_accumulator;
   logic [7:0] next_index_x;
   logic [7:0] next_index_y;
+  logic [7:0] next_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
   logic [7:0] zeropage_address;
+  logic data_is_zero;
+  logic data_is_negative;
 
   always_comb begin
     // Prevent inferring latches. TODO: Is there a better way to do this?
@@ -83,10 +89,14 @@ module cpu #(
     next_accumulator = accumulator;
     next_index_x = index_x;
     next_index_y = index_y;
+    next_status = status;
     read_zeropage = 0;
     alu_input_a = 0;
     alu_input_b = 0;
     zeropage_address = 0;
+
+    data_is_zero = (data_i == 0);
+    data_is_negative = data_i[7];
 
     if (instruction_stage == 0) begin
       read_instruction = data_i;
@@ -120,6 +130,8 @@ module cpu #(
             if (data_valid_i) begin
               next_instruction_stage = 0;
               increment_and_read_program_counter = 1;
+              next_status[`STATUS_ZERO] = data_is_zero;
+              next_status[`STATUS_NEGATIVE] = data_is_negative;
               case (current_instruction)
                 `OP_LDA_IMM: next_accumulator = data_i;
                 `OP_LDX_IMM: next_index_x = data_i;
@@ -153,6 +165,8 @@ module cpu #(
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
+            next_status[`STATUS_ZERO] = data_is_zero;
+            next_status[`STATUS_NEGATIVE] = data_is_negative;
             case (current_instruction)
               `OP_LDA_ZP: next_accumulator = data_i;
               `OP_LDX_ZP: next_index_x = data_i;
@@ -176,6 +190,8 @@ module cpu #(
           `OP_LDA_ZPX: begin
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
+            next_status[`STATUS_ZERO] = data_is_zero;
+            next_status[`STATUS_NEGATIVE] = data_is_negative;
             case (current_instruction)
               `OP_LDA_ZPX: next_accumulator = data_i;
               default begin
@@ -211,6 +227,7 @@ module cpu #(
       accumulator <= next_accumulator;
       index_x <= next_index_x;
       index_y <= next_index_y;
+      status <= next_status;
       if (increment_and_read_program_counter) begin
         program_counter <= incremented_program_counter;
         address_o <= incremented_program_counter;

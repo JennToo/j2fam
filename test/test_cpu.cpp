@@ -89,7 +89,7 @@ void run_to_end(Driver<Vcpu> &driver, std::shared_ptr<BusEmulator> bus_emulator,
   REQUIRE(bus_emulator->test_completed);
 }
 
-TEST_CASE("Test CPU") {
+TEST_CASE("Test CPU minimal instructions") {
   Verilated::traceEverOn(true);
 
   Driver<Vcpu> driver("build/tests/test_cpu/");
@@ -110,7 +110,8 @@ TEST_CASE("Test CPU") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_imm");
     run_to_end(driver, bus_emulator, 120);
     REQUIRE(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
-    REQUIRE(driver.instance.accumulator_o == 42);
+    REQUIRE(driver.instance.accumulator_o == 142);
+    REQUIRE(((driver.instance.status_o >> 7) & 1) != 0);
   }
   SECTION("Check LDA zeropage") {
     bus_emulator->memory[0x42] = 74;

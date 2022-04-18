@@ -1,6 +1,6 @@
 .segment "CODE"
 reset:
-    lda #42
+    lda #142
 
 .asciiz "END OF TEST"
 
