@@ -73,7 +73,6 @@ module cpu #(
   logic [7:0] read_instruction;
   logic [2:0] next_instruction_stage;
   logic increment_and_read_program_counter;
-  logic read_zeropage;
   logic new_carry;
   logic [7:0] next_address_low;
   logic [7:0] next_address_high;
@@ -88,8 +87,6 @@ module cpu #(
   logic [7:0] alu_result_status;
   logic alu_to_address_low;
   logic alu_to_accumulator;
-  logic data_is_zero;
-  logic data_is_negative;
   logic data_to_accumulator;
   logic data_to_index_x;
   logic data_to_index_y;
@@ -100,16 +97,7 @@ module cpu #(
   logic bus_read;
 
   always_comb begin
-    // Prevent inferring latches. TODO: Is there a better way to do this?
-    next_instruction_stage = instruction_stage;
-    increment_and_read_program_counter = 0;
-    next_accumulator = accumulator;
-    next_index_x = index_x;
-    next_index_y = index_y;
-    next_status = status;
-    read_zeropage = 0;
-    alu_input_a = 0;
-    alu_input_b = 0;
+    // Control signals
     alu_to_address_low = 0;
     alu_to_accumulator = 0;
     data_to_accumulator = 0;
@@ -120,11 +108,17 @@ module cpu #(
     data_to_address_low = 0;
     alu_status_to_status = 0;
     data_status_to_status = 0;
+
+    next_instruction_stage = instruction_stage;
+    increment_and_read_program_counter = 0;
+    next_accumulator = accumulator;
+    next_index_x = index_x;
+    next_index_y = index_y;
+    next_status = status;
+    alu_input_a = 0;
+    alu_input_b = 0;
     next_address_low = address_o[7:0];
     next_address_high = address_o[15:8];
-
-    data_is_zero = (data_i == 0);
-    data_is_negative = data_i[7];
 
     if (instruction_stage == 0) begin
       read_instruction = data_i;
@@ -181,7 +175,6 @@ module cpu #(
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              read_zeropage = 1;
               zero_to_address_high = 1;
               data_to_address_low = 1;
               bus_read = 1;
@@ -216,7 +209,6 @@ module cpu #(
           end
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
-            read_zeropage = 1;
             alu_input_a = index_x;
             alu_input_b = data_i;
             alu_to_address_low = 1;
@@ -249,10 +241,6 @@ module cpu #(
       default begin
       end
     endcase
-
-    data_status = 0;
-    data_status[`STATUS_ZERO] = data_is_zero;
-    data_status[`STATUS_NEGATIVE] = data_is_negative;
 
     {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};
     alu_result_status = status;
@@ -289,6 +277,13 @@ module cpu #(
     if (data_status_to_status) begin
       next_status = data_status;
     end
+  end
+
+  // Data status flags computation
+  always_comb begin
+    data_status = 0;
+    data_status[`STATUS_ZERO] = (data_i == 0);
+    data_status[`STATUS_NEGATIVE] = data_i[7];
   end
 
   always_ff @(posedge clock_i) begin
