@@ -81,6 +81,7 @@ module cpu #(
   logic [7:0] next_index_x;
   logic [7:0] next_index_y;
   logic [7:0] next_status;
+  logic [7:0] data_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
@@ -94,6 +95,8 @@ module cpu #(
   logic data_to_index_y;
   logic data_to_address_low;
   logic zero_to_address_high;
+  logic alu_status_to_status;
+  logic data_status_to_status;
   logic bus_read;
 
   always_comb begin
@@ -115,6 +118,8 @@ module cpu #(
     bus_read = 0;
     zero_to_address_high = 0;
     data_to_address_low = 0;
+    alu_status_to_status = 0;
+    data_status_to_status = 0;
     next_address_low = address_o[7:0];
     next_address_high = address_o[15:8];
 
@@ -154,8 +159,7 @@ module cpu #(
             if (data_valid_i) begin
               next_instruction_stage = 0;
               increment_and_read_program_counter = 1;
-              next_status[`STATUS_ZERO] = data_is_zero;
-              next_status[`STATUS_NEGATIVE] = data_is_negative;
+              data_status_to_status = 1;
               case (current_instruction)
                 `OP_LDA_IMM: data_to_accumulator = 1;
                 `OP_LDX_IMM: data_to_index_x = 1;
@@ -201,8 +205,7 @@ module cpu #(
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
-            next_status[`STATUS_ZERO] = data_is_zero;
-            next_status[`STATUS_NEGATIVE] = data_is_negative;
+            data_status_to_status = 1;
             case (current_instruction)
               `OP_LDA_ZP: data_to_accumulator = 1;
               `OP_LDX_ZP: data_to_index_x = 1;
@@ -230,8 +233,7 @@ module cpu #(
           `OP_LDA_ZPX: begin
             next_instruction_stage = 0;
             increment_and_read_program_counter = 1;
-            next_status[`STATUS_ZERO] = data_is_zero;
-            next_status[`STATUS_NEGATIVE] = data_is_negative;
+            data_status_to_status = 1;
             case (current_instruction)
               `OP_LDA_ZPX: data_to_accumulator = 1;
               default begin
@@ -248,6 +250,10 @@ module cpu #(
       end
     endcase
 
+    data_status = 0;
+    data_status[`STATUS_ZERO] = data_is_zero;
+    data_status[`STATUS_NEGATIVE] = data_is_negative;
+
     {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};
     alu_result_status = status;
     alu_result_status[`STATUS_CARRY] = new_carry;
@@ -261,7 +267,6 @@ module cpu #(
     end
     if (alu_to_accumulator) begin
       next_accumulator = alu_result;
-      next_status = alu_result_status;
     end
     if (data_to_accumulator) begin
       next_accumulator = data_i;
@@ -277,6 +282,12 @@ module cpu #(
     end
     if (data_to_address_low) begin
       next_address_low = data_i;
+    end
+    if (alu_status_to_status) begin
+      next_status = alu_result_status;
+    end
+    if (data_status_to_status) begin
+      next_status = data_status;
     end
   end
 
