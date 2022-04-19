@@ -57,6 +57,7 @@ module cpu #(
   `define RESET_STAGE_1 6
   `define RESET_STAGE_2 7
 
+  // "External" registers
   logic [15:0] program_counter;
   logic [ 7:0] accumulator;
   logic [ 7:0] index_x;
@@ -64,8 +65,11 @@ module cpu #(
   logic [ 7:0] status;
   logic [ 7:0] stack_pointer;
 
+  // Internal registers
   logic [ 2:0] instruction_stage;
   logic [ 7:0] current_instruction;
+  logic [ 7:0] address_high;
+  logic [ 7:0] address_low;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = program_counter + 1;
@@ -278,8 +282,8 @@ module cpu #(
     next_index_x = index_x;
     next_index_y = index_y;
     next_status = status;
-    next_address_low = address_o[7:0];
-    next_address_high = address_o[15:8];
+    next_address_low = address_low;
+    next_address_high = address_high;
 
     if (alu_to_address_low) begin
       next_address_low = alu_result;
@@ -314,7 +318,8 @@ module cpu #(
     if (reset_i == 1) begin
       instruction_stage <= `RESET_STAGE_1;
       address_valid_o <= 1;
-      address_o <= 16'hFFFC;
+      address_low <= 8'hFC;
+      address_high <= 8'hFF;
       accumulator <= 0;
       index_x <= 0;
       index_y <= 0;
@@ -330,11 +335,13 @@ module cpu #(
       status <= next_status;
       if (increment_and_read_program_counter) begin
         program_counter <= incremented_program_counter;
-        address_o <= incremented_program_counter;
+        address_low <= incremented_program_counter[7:0];
+        address_high <= incremented_program_counter[15:8];
         address_valid_o <= 1;
       end
       if (bus_read) begin
-        address_o <= {next_address_high, next_address_low};
+        address_low <= next_address_low;
+        address_high <= next_address_high;
         address_valid_o <= 1;
       end
 
@@ -343,7 +350,8 @@ module cpu #(
           if (data_valid_i == 1) begin
             instruction_stage <= `RESET_STAGE_2;
             program_counter[7:0] <= data_i;
-            address_o <= 16'hFFFD;
+            address_low <= 8'hFD;
+            address_high <= 8'hFF;
             address_valid_o <= 1;
           end
         end
@@ -352,7 +360,8 @@ module cpu #(
           if (data_valid_i == 1) begin
             instruction_stage <= 0;
             program_counter[15:8] <= data_i;
-            address_o <= {data_i, program_counter[7:0]};
+            address_low <= program_counter[7:0];
+            address_high <= data_i;
             address_valid_o <= 1;
           end
         end
@@ -362,6 +371,8 @@ module cpu #(
       endcase
     end
   end
+
+  assign address_o = {address_high, address_low};
 
 `ifdef SIMULATION
   assign clock_ready_o = clock_ready;
