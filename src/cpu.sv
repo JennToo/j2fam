@@ -6,9 +6,12 @@
 `define OP_LDX_ZP 8'hA6
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
+`define OP_ADC_IMM 8'h69
 
 `define STATUS_ZERO 1
 `define STATUS_NEGATIVE 7
+`define STATUS_CARRY 0
+`define STATUS_OVERFLOW 6
 
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
@@ -71,6 +74,7 @@ module cpu #(
   logic [2:0] next_instruction_stage;
   logic increment_and_read_program_counter;
   logic read_zeropage;
+  logic new_carry;
   logic [7:0] next_accumulator;
   logic [7:0] next_index_x;
   logic [7:0] next_index_y;
@@ -78,7 +82,9 @@ module cpu #(
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
+  logic [7:0] alu_result_status;
   logic alu_to_zeropage;
+  logic alu_to_accumulator;
   logic [7:0] zeropage_address;
   logic data_is_zero;
   logic data_is_negative;
@@ -95,6 +101,7 @@ module cpu #(
     alu_input_a = 0;
     alu_input_b = 0;
     alu_to_zeropage = 0;
+    alu_to_accumulator = 0;
     zeropage_address = 0;
 
     data_is_zero = (data_i == 0);
@@ -113,7 +120,7 @@ module cpu #(
         if (data_valid_i) begin
           case (read_instruction)
             `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP,
-            `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX: begin
+            `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX, `OP_ADC_IMM: begin
               increment_and_read_program_counter = 1;
             end
 
@@ -142,6 +149,15 @@ module cpu #(
                 default: begin
                 end
               endcase
+            end
+          end
+          `OP_ADC_IMM: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_and_read_program_counter = 1;
+              alu_input_a = accumulator;
+              alu_input_b = data_i;
+              alu_to_accumulator = 1;
             end
           end
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
@@ -214,10 +230,20 @@ module cpu #(
       end
     endcase
 
-    alu_result = alu_input_a + alu_input_b;
+    {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};
+    alu_result_status = status;
+    alu_result_status[`STATUS_CARRY] = new_carry;
+    alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
+    alu_result_status[`STATUS_ZERO] = (alu_result == 0);
+    // TODO
+    alu_result_status[`STATUS_OVERFLOW] = 0;
 
     if (alu_to_zeropage) begin
       zeropage_address = alu_result;
+    end
+    if (alu_to_accumulator) begin
+      next_accumulator = alu_result;
+      next_status = alu_result_status;
     end
   end
 

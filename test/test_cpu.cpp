@@ -154,4 +154,11 @@ TEST_CASE("Test CPU minimal instructions") {
     REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     REQUIRE(driver.instance.index_y_o == 74);
   }
+  SECTION("Check ADC immediate") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_adc_imm");
+    run_to_end(driver, bus_emulator, 120);
+    REQUIRE(bus_emulator->test_clock_ready_count ==
+            2 + 2 + RESET_CYCLE_OVERHEAD);
+    REQUIRE(driver.instance.accumulator_o == 216);
+  }
 }
