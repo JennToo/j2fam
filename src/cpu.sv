@@ -63,7 +63,6 @@ module cpu #(
 
   logic [ 2:0] instruction_stage;
   logic [ 7:0] current_instruction;
-  logic [ 7:0] alu_result;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = program_counter + 1;
@@ -78,6 +77,8 @@ module cpu #(
   logic [7:0] next_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
+  logic [7:0] alu_result;
+  logic alu_to_zeropage;
   logic [7:0] zeropage_address;
   logic data_is_zero;
   logic data_is_negative;
@@ -93,6 +94,7 @@ module cpu #(
     read_zeropage = 0;
     alu_input_a = 0;
     alu_input_b = 0;
+    alu_to_zeropage = 0;
     zeropage_address = 0;
 
     data_is_zero = (data_i == 0);
@@ -110,7 +112,8 @@ module cpu #(
 
         if (data_valid_i) begin
           case (read_instruction)
-            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX: begin
+            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP,
+            `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX: begin
               increment_and_read_program_counter = 1;
             end
 
@@ -151,8 +154,9 @@ module cpu #(
           `OP_LDA_ZPX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              alu_input_a = index_x;
-              alu_input_b = data_i;
+              // TODO: If the ALU is entirely combinational, why did this need
+              // an extra cycle then?  I wonder if the high and low portions
+              // of the address register can't be updated at the same time?
             end
           end
           default begin
@@ -178,7 +182,9 @@ module cpu #(
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
             read_zeropage = 1;
-            zeropage_address = alu_result;
+            alu_input_a = index_x;
+            alu_input_b = data_i;
+            alu_to_zeropage = 1;
           end
           default begin
           end
@@ -207,8 +213,13 @@ module cpu #(
       default begin
       end
     endcase
-  end
 
+    alu_result = alu_input_a + alu_input_b;
+
+    if (alu_to_zeropage) begin
+      zeropage_address = alu_result;
+    end
+  end
 
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
@@ -237,8 +248,6 @@ module cpu #(
         address_o <= {8'b0, zeropage_address};
         address_valid_o <= 1;
       end
-
-      alu_result <= alu_input_a + alu_input_b;
 
       case (instruction_stage)
         `RESET_STAGE_1: begin
