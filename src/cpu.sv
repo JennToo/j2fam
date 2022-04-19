@@ -95,6 +95,9 @@ module cpu #(
   logic alu_status_to_status;
   logic data_status_to_status;
   logic bus_read;
+  logic accumulator_to_alu_input_a;
+  logic x_to_alu_input_a;
+  logic data_to_alu_input_b;
 
   always_comb begin
     // Control signals
@@ -108,17 +111,12 @@ module cpu #(
     data_to_address_low = 0;
     alu_status_to_status = 0;
     data_status_to_status = 0;
+    accumulator_to_alu_input_a = 0;
+    x_to_alu_input_a = 0;
+    data_to_alu_input_b = 0;
 
     next_instruction_stage = instruction_stage;
     increment_and_read_program_counter = 0;
-    next_accumulator = accumulator;
-    next_index_x = index_x;
-    next_index_y = index_y;
-    next_status = status;
-    alu_input_a = 0;
-    alu_input_b = 0;
-    next_address_low = address_o[7:0];
-    next_address_high = address_o[15:8];
 
     if (instruction_stage == 0) begin
       read_instruction = data_i;
@@ -167,8 +165,8 @@ module cpu #(
             if (data_valid_i) begin
               next_instruction_stage = 0;
               increment_and_read_program_counter = 1;
-              alu_input_a = accumulator;
-              alu_input_b = data_i;
+              accumulator_to_alu_input_a = 1;
+              data_to_alu_input_b = 1;
               alu_to_accumulator = 1;
             end
           end
@@ -209,8 +207,8 @@ module cpu #(
           end
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
-            alu_input_a = index_x;
-            alu_input_b = data_i;
+            x_to_alu_input_a = 1;
+            data_to_alu_input_b = 1;
             alu_to_address_low = 1;
             zero_to_address_high = 1;
             bus_read = 1;
@@ -241,6 +239,29 @@ module cpu #(
       default begin
       end
     endcase
+  end
+
+
+  // Data status flags computation
+  always_comb begin
+    data_status = 0;
+    data_status[`STATUS_ZERO] = (data_i == 0);
+    data_status[`STATUS_NEGATIVE] = data_i[7];
+  end
+
+  // ALU
+  always_comb begin
+    alu_input_a = 0;
+    alu_input_b = 0;
+    if (accumulator_to_alu_input_a) begin
+      alu_input_a = accumulator;
+    end
+    if (x_to_alu_input_a) begin
+      alu_input_a = index_x;
+    end
+    if (data_to_alu_input_b) begin
+      alu_input_b = data_i;
+    end
 
     {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};
     alu_result_status = status;
@@ -249,6 +270,16 @@ module cpu #(
     alu_result_status[`STATUS_ZERO] = (alu_result == 0);
     // TODO
     alu_result_status[`STATUS_OVERFLOW] = 0;
+  end
+
+  // Register write sorting
+  always_comb begin
+    next_accumulator = accumulator;
+    next_index_x = index_x;
+    next_index_y = index_y;
+    next_status = status;
+    next_address_low = address_o[7:0];
+    next_address_high = address_o[15:8];
 
     if (alu_to_address_low) begin
       next_address_low = alu_result;
@@ -277,13 +308,6 @@ module cpu #(
     if (data_status_to_status) begin
       next_status = data_status;
     end
-  end
-
-  // Data status flags computation
-  always_comb begin
-    data_status = 0;
-    data_status[`STATUS_ZERO] = (data_i == 0);
-    data_status[`STATUS_NEGATIVE] = data_i[7];
   end
 
   always_ff @(posedge clock_i) begin
