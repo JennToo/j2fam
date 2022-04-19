@@ -75,6 +75,8 @@ module cpu #(
   logic increment_and_read_program_counter;
   logic read_zeropage;
   logic new_carry;
+  logic [7:0] next_address_low;
+  logic [7:0] next_address_high;
   logic [7:0] next_accumulator;
   logic [7:0] next_index_x;
   logic [7:0] next_index_y;
@@ -83,14 +85,14 @@ module cpu #(
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
   logic [7:0] alu_result_status;
-  logic alu_to_zeropage;
+  logic alu_to_address_low;
   logic alu_to_accumulator;
-  logic [7:0] zeropage_address;
   logic data_is_zero;
   logic data_is_negative;
   logic data_to_accumulator;
   logic data_to_index_x;
   logic data_to_index_y;
+  logic bus_read;
 
   always_comb begin
     // Prevent inferring latches. TODO: Is there a better way to do this?
@@ -103,12 +105,14 @@ module cpu #(
     read_zeropage = 0;
     alu_input_a = 0;
     alu_input_b = 0;
-    alu_to_zeropage = 0;
+    alu_to_address_low = 0;
     alu_to_accumulator = 0;
     data_to_accumulator = 0;
     data_to_index_x = 0;
     data_to_index_y = 0;
-    zeropage_address = 0;
+    bus_read = 0;
+    next_address_low = address_o[7:0];
+    next_address_high = address_o[15:8];
 
     data_is_zero = (data_i == 0);
     data_is_negative = data_i[7];
@@ -170,7 +174,9 @@ module cpu #(
             if (data_valid_i) begin
               next_instruction_stage = 2;
               read_zeropage = 1;
-              zeropage_address = data_i;
+              next_address_high = 0;
+              next_address_low = data_i;
+              bus_read = 1;
             end
           end
           `OP_LDA_ZPX: begin
@@ -206,7 +212,9 @@ module cpu #(
             read_zeropage = 1;
             alu_input_a = index_x;
             alu_input_b = data_i;
-            alu_to_zeropage = 1;
+            alu_to_address_low = 1;
+            next_address_high = 0;
+            bus_read = 1;
           end
           default begin
           end
@@ -244,8 +252,8 @@ module cpu #(
     // TODO
     alu_result_status[`STATUS_OVERFLOW] = 0;
 
-    if (alu_to_zeropage) begin
-      zeropage_address = alu_result;
+    if (alu_to_address_low) begin
+      next_address_low = alu_result;
     end
     if (alu_to_accumulator) begin
       next_accumulator = alu_result;
@@ -285,8 +293,8 @@ module cpu #(
         address_o <= incremented_program_counter;
         address_valid_o <= 1;
       end
-      if (read_zeropage) begin
-        address_o <= {8'b0, zeropage_address};
+      if (bus_read) begin
+        address_o <= {next_address_high, next_address_low};
         address_valid_o <= 1;
       end
 
