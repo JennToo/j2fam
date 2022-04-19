@@ -88,6 +88,9 @@ module cpu #(
   logic [7:0] zeropage_address;
   logic data_is_zero;
   logic data_is_negative;
+  logic data_to_accumulator;
+  logic data_to_index_x;
+  logic data_to_index_y;
 
   always_comb begin
     // Prevent inferring latches. TODO: Is there a better way to do this?
@@ -102,6 +105,9 @@ module cpu #(
     alu_input_b = 0;
     alu_to_zeropage = 0;
     alu_to_accumulator = 0;
+    data_to_accumulator = 0;
+    data_to_index_x = 0;
+    data_to_index_y = 0;
     zeropage_address = 0;
 
     data_is_zero = (data_i == 0);
@@ -143,9 +149,9 @@ module cpu #(
               next_status[`STATUS_ZERO] = data_is_zero;
               next_status[`STATUS_NEGATIVE] = data_is_negative;
               case (current_instruction)
-                `OP_LDA_IMM: next_accumulator = data_i;
-                `OP_LDX_IMM: next_index_x = data_i;
-                `OP_LDY_IMM: next_index_y = data_i;
+                `OP_LDA_IMM: data_to_accumulator = 1;
+                `OP_LDX_IMM: data_to_index_x = 1;
+                `OP_LDY_IMM: data_to_index_y = 1;
                 default: begin
                 end
               endcase
@@ -188,9 +194,9 @@ module cpu #(
             next_status[`STATUS_ZERO] = data_is_zero;
             next_status[`STATUS_NEGATIVE] = data_is_negative;
             case (current_instruction)
-              `OP_LDA_ZP: next_accumulator = data_i;
-              `OP_LDX_ZP: next_index_x = data_i;
-              `OP_LDY_ZP: next_index_y = data_i;
+              `OP_LDA_ZP: data_to_accumulator = 1;
+              `OP_LDX_ZP: data_to_index_x = 1;
+              `OP_LDY_ZP: data_to_index_y = 1;
               default: begin
               end
             endcase
@@ -215,7 +221,7 @@ module cpu #(
             next_status[`STATUS_ZERO] = data_is_zero;
             next_status[`STATUS_NEGATIVE] = data_is_negative;
             case (current_instruction)
-              `OP_LDA_ZPX: next_accumulator = data_i;
+              `OP_LDA_ZPX: data_to_accumulator = 1;
               default begin
               end
             endcase
@@ -244,6 +250,15 @@ module cpu #(
     if (alu_to_accumulator) begin
       next_accumulator = alu_result;
       next_status = alu_result_status;
+    end
+    if (data_to_accumulator) begin
+      next_accumulator = data_i;
+    end
+    if (data_to_index_x) begin
+      next_index_x = data_i;
+    end
+    if (data_to_index_y) begin
+      next_index_y = data_i;
     end
   end
 
