@@ -66,6 +66,10 @@ struct BusEmulator : Driver<Vcpu>::Listener {
     }
 
     if (instance.address_valid_o == 1) {
+      if (instance.address_o < (BUS_SIZE - strlen("TEST FAILED"))) {
+        REQUIRE(memcmp(&memory[instance.address_o], "TEST FAILED",
+                       strlen("TEST FAILED")) != 0);
+      }
       if (instance.address_o == end_of_test_address) {
         test_completed = true;
         instance.data_valid_i = 0;
@@ -86,7 +90,7 @@ void run_to_end(Driver<Vcpu> &driver, std::shared_ptr<BusEmulator> bus_emulator,
     max_cycles -= CLOCK_RATIO_DEFAULT;
     driver.run_cycles(12);
   }
-  REQUIRE(bus_emulator->test_completed);
+  CHECK(bus_emulator->test_completed);
 }
 
 TEST_CASE("Test CPU minimal instructions") {
@@ -160,5 +164,10 @@ TEST_CASE("Test CPU minimal instructions") {
     REQUIRE(bus_emulator->test_clock_ready_count ==
             2 + 2 + RESET_CYCLE_OVERHEAD);
     REQUIRE(driver.instance.accumulator_o == 216);
+  }
+  SECTION("Check JMP absolute") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_jmp_abs");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
   }
 }
