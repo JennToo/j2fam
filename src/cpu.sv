@@ -111,6 +111,8 @@ module cpu #(
   logic data_to_alu_input_b;
   logic increment_pc_to_pc;
   logic increment_pc_to_address;
+  logic ff_to_address_high;
+  logic fd_to_address_low;
 
   always_comb begin
     // Control signals
@@ -133,6 +135,8 @@ module cpu #(
     data_to_address_high = 0;
     increment_pc_to_address = 0;
     increment_pc_to_pc = 0;
+    ff_to_address_high = 0;
+    fd_to_address_low = 0;
 
     next_instruction_stage = instruction_stage;
 
@@ -283,6 +287,25 @@ module cpu #(
         endcase
       end
 
+      `RESET_STAGE_1: begin
+        if (data_valid_i == 1) begin
+          next_instruction_stage = `RESET_STAGE_2;
+          data_to_pc_low = 1;
+          ff_to_address_high = 1;
+          fd_to_address_low = 1;
+          bus_read = 1;
+        end
+      end
+
+      `RESET_STAGE_2: begin
+        if (data_valid_i == 1) begin
+          next_instruction_stage = 0;
+          data_to_pc_high = 1;
+          pc_low_to_address_low = 1;
+          data_to_address_high = 1;
+          bus_read = 1;
+        end
+      end
       default begin
       end
     endcase
@@ -377,6 +400,12 @@ module cpu #(
       next_program_counter_low  = incremented_program_counter[7:0];
       next_program_counter_high = incremented_program_counter[15:8];
     end
+    if (ff_to_address_high) begin
+      next_address_high = 8'hFF;
+    end
+    if (fd_to_address_low) begin
+      next_address_low = 8'hFD;
+    end
   end
 
   always_ff @(posedge clock_i) begin
@@ -405,31 +434,6 @@ module cpu #(
         address_high <= next_address_high;
         address_valid_o <= 1;
       end
-
-      case (instruction_stage)
-        `RESET_STAGE_1: begin
-          if (data_valid_i == 1) begin
-            instruction_stage <= `RESET_STAGE_2;
-            program_counter_low <= data_i;
-            address_low <= 8'hFD;
-            address_high <= 8'hFF;
-            address_valid_o <= 1;
-          end
-        end
-
-        `RESET_STAGE_2: begin
-          if (data_valid_i == 1) begin
-            instruction_stage <= 0;
-            program_counter_high <= data_i;
-            address_low <= program_counter_low;
-            address_high <= data_i;
-            address_valid_o <= 1;
-          end
-        end
-
-        default begin
-        end
-      endcase
     end
   end
 
