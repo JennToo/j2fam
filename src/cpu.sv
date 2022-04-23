@@ -35,8 +35,8 @@ module cpu #(
 
     output logic [7:0] data_o,
     output logic [15:0] address_o,
-    output logic address_valid_o,
-    output logic data_valid_o
+    output logic bus_read_o,
+    output logic bus_write_o
 );
 
   logic [7:0] clock_divider;
@@ -411,7 +411,7 @@ module cpu #(
   always_ff @(posedge clock_i) begin
     if (reset_i == 1) begin
       instruction_stage <= `RESET_STAGE_1;
-      address_valid_o <= 1;
+      bus_read_o <= 1;
       address_low <= 8'hFC;
       address_high <= 8'hFF;
       accumulator <= 0;
@@ -429,11 +429,9 @@ module cpu #(
       status <= next_status;
       program_counter_low <= next_program_counter_low;
       program_counter_high <= next_program_counter_high;
-      if (bus_read) begin
-        address_low <= next_address_low;
-        address_high <= next_address_high;
-        address_valid_o <= 1;
-      end
+      address_low <= next_address_low;
+      address_high <= next_address_high;
+      bus_read_o <= bus_read;
     end
   end
 

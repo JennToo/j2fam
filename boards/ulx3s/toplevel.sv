@@ -12,12 +12,12 @@ module toplevel (
   logic [7:0] cpu_data_output;
   logic cpu_data_output_valid;
   logic [15:0] cpu_address_output;
-  logic cpu_address_output_valid;
+  logic cpu_bus_read_output;
 
   // Hacks to get some kind of synth to ensure we're in the ballpark for
   // timing etc. until I'm ready to actually hook up signals
   assign gp_o = {
-    0, 0, cpu_address_output_valid, cpu_data_output_valid, cpu_address_output, cpu_data_output
+    0, 0, cpu_bus_read_output, cpu_data_output_valid, cpu_address_output, cpu_data_output
   };
   assign cpu_data_input = gn_i[7:0];
   assign cpu_data_input_valid = gn_i[8];
@@ -28,9 +28,9 @@ module toplevel (
       .reset_i(btn_i[0]),
       .clock_i(system_clock),
       .data_o(cpu_data_output),
-      .data_valid_o(cpu_data_output_valid),
+      .bus_write_o(cpu_data_output_valid),
       .address_o(cpu_address_output),
-      .address_valid_o(cpu_address_output_valid),
+      .bus_read_o(cpu_bus_read_output),
       .data_i(cpu_data_input),
       .data_valid_i(cpu_data_input_valid)
   );

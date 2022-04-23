@@ -65,7 +65,7 @@ struct BusEmulator : Driver<Vcpu>::Listener {
       test_clock_ready_count++;
     }
 
-    if (instance.address_valid_o == 1) {
+    if (instance.bus_read_o == 1 || instance.bus_write_o) {
       if (instance.address_o < (BUS_SIZE - strlen("TEST FAILED"))) {
         REQUIRE(memcmp(&memory[instance.address_o], "TEST FAILED",
                        strlen("TEST FAILED")) != 0);
@@ -73,7 +73,7 @@ struct BusEmulator : Driver<Vcpu>::Listener {
       if (instance.address_o == end_of_test_address) {
         test_completed = true;
         instance.data_valid_i = 0;
-      } else if (instance.data_valid_o == 1) {
+      } else if (instance.bus_write_o == 1) {
         memory[instance.address_o] = instance.data_o;
         instance.data_valid_i = 0;
       } else {
