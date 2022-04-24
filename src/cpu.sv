@@ -2,6 +2,7 @@
 `define OP_LDA_IMM 8'hA9
 `define OP_LDA_ZP 8'hA5
 `define OP_LDA_ZPX 8'hB5
+`define OP_LDA_ABS 8'hAD
 `define OP_LDX_IMM 8'hA2
 `define OP_LDX_ZP 8'hA6
 `define OP_LDY_IMM 8'hA0
@@ -72,6 +73,7 @@ module cpu #(
   logic [ 7:0] current_instruction;
   logic [ 7:0] address_high;
   logic [ 7:0] address_low;
+  logic [ 7:0] adder_hold;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = {program_counter_high, program_counter_low} + 1;
@@ -87,6 +89,7 @@ module cpu #(
   logic [7:0] next_index_x;
   logic [7:0] next_index_y;
   logic [7:0] next_status;
+  logic [7:0] next_adder_hold;
   logic [7:0] data_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
@@ -113,6 +116,8 @@ module cpu #(
   logic increment_pc_to_address;
   logic ff_to_address_high;
   logic fd_to_address_low;
+  logic adder_hold_to_address_low;
+  logic data_to_adder_hold;
 
   always_comb begin
     // Control signals
@@ -137,6 +142,8 @@ module cpu #(
     increment_pc_to_pc = 0;
     ff_to_address_high = 0;
     fd_to_address_low = 0;
+    adder_hold_to_address_low = 0;
+    data_to_adder_hold = 0;
 
     next_instruction_stage = instruction_stage;
 
@@ -152,7 +159,7 @@ module cpu #(
 
         if (data_valid_i) begin
           case (read_instruction)
-            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP,
+            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDA_ABS,
             `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX, `OP_ADC_IMM, `OP_JMP_ABS: begin
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
@@ -216,6 +223,14 @@ module cpu #(
               // of the address register can't be updated at the same time?
             end
           end
+          `OP_LDA_ABS: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 2;
+              data_to_adder_hold = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+            end
+          end
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -253,6 +268,16 @@ module cpu #(
             zero_to_address_high = 1;
             bus_read = 1;
           end
+          `OP_LDA_ABS: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 3;
+              adder_hold_to_address_low = 1;
+              data_to_address_high = 1;
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+            end
+          end
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
@@ -269,6 +294,15 @@ module cpu #(
 
       3: begin
         case (read_instruction)
+          `OP_LDA_ABS: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              data_to_accumulator = 1;
+              bus_read = 1;
+            end
+          end
           `OP_LDA_ZPX: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
@@ -352,6 +386,7 @@ module cpu #(
     next_address_high = address_high;
     next_program_counter_low = program_counter_low;
     next_program_counter_high = program_counter_high;
+    next_adder_hold = adder_hold;
 
     if (alu_to_address_low) begin
       next_address_low = alu_result;
@@ -406,6 +441,12 @@ module cpu #(
     if (fd_to_address_low) begin
       next_address_low = 8'hFD;
     end
+    if (data_to_adder_hold) begin
+      next_adder_hold = data_i;
+    end
+    if (adder_hold_to_address_low) begin
+      next_address_low = adder_hold;
+    end
   end
 
   always_ff @(posedge clock_i) begin
@@ -432,6 +473,7 @@ module cpu #(
       address_low <= next_address_low;
       address_high <= next_address_high;
       bus_read_o <= bus_read;
+      adder_hold <= next_adder_hold;
     end
   end
 

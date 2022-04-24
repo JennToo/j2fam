@@ -124,6 +124,13 @@ TEST_CASE("Test CPU minimal instructions") {
     REQUIRE(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     REQUIRE(driver.instance.accumulator_o == 74);
   }
+  SECTION("Check LDA absolute") {
+    bus_emulator->memory[0x42] = 74;
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_abs");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 4 + RESET_CYCLE_OVERHEAD);
+    CHECK(driver.instance.accumulator_o == 42);
+  }
   SECTION("Check LDA zeropage,X") {
     bus_emulator->memory[0x42] = 74;
     bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_zpx");
