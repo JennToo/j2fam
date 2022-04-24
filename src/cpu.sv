@@ -295,11 +295,10 @@ module cpu #(
             alu_result_to_adder_hold = 1;
           end
           `OP_STA_ZP: begin
-            // It's not clear why we need to wait here. It's possible the
-            // original hardware can't setup a write to the data register on
-            // the same cycle that it's sending that data to the low address
-            // register. We have no such weakness
-            next_instruction_stage = 3;
+            next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
           end
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
@@ -327,12 +326,6 @@ module cpu #(
 
       3: begin
         case (current_instruction)
-          `OP_STA_ZP: begin
-            next_instruction_stage = 0;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
