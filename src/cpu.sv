@@ -78,7 +78,7 @@ module cpu #(
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = {program_counter_high, program_counter_low} + 1;
 
-  logic [7:0] read_instruction;
+  logic [7:0] next_instruction;
   logic [2:0] next_instruction_stage;
   logic new_carry;
   logic [7:0] next_address_low;
@@ -95,8 +95,6 @@ module cpu #(
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
   logic [7:0] alu_result_status;
-  logic alu_to_address_low;
-  logic alu_to_accumulator;
   logic data_to_accumulator;
   logic data_to_index_x;
   logic data_to_index_y;
@@ -118,11 +116,12 @@ module cpu #(
   logic fd_to_address_low;
   logic adder_hold_to_address_low;
   logic data_to_adder_hold;
+  logic alu_result_to_adder_hold;
+  logic adder_hold_to_accumulator;
+  logic data_to_next_instruction;
 
   always_comb begin
     // Control signals
-    alu_to_address_low = 0;
-    alu_to_accumulator = 0;
     data_to_accumulator = 0;
     data_to_index_x = 0;
     data_to_index_y = 0;
@@ -144,41 +143,36 @@ module cpu #(
     fd_to_address_low = 0;
     adder_hold_to_address_low = 0;
     data_to_adder_hold = 0;
+    data_to_next_instruction = 0;
+    alu_result_to_adder_hold = 0;
+    adder_hold_to_accumulator = 0;
 
     next_instruction_stage = instruction_stage;
 
-    if (instruction_stage == 0) begin
-      read_instruction = data_i;
-    end else begin
-      read_instruction = current_instruction;
-    end
-
     case (instruction_stage)
       0: begin
-        next_instruction_stage = 1;
-
         if (data_valid_i) begin
-          case (read_instruction)
-            `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM, `OP_LDA_ZP, `OP_LDA_ABS,
-            `OP_LDX_ZP, `OP_LDY_ZP, `OP_LDA_ZPX, `OP_ADC_IMM, `OP_JMP_ABS: begin
-              increment_pc_to_pc = 1;
-              increment_pc_to_address = 1;
-              bus_read = 1;
-            end
-
-            default begin
-            end
-          endcase
+          next_instruction_stage = 1;
+          increment_pc_to_pc = 1;
+          increment_pc_to_address = 1;
+          bus_read = 1;
+          data_to_next_instruction = 1;
         end
+
+        case (current_instruction)
+          `OP_ADC_IMM: begin
+            adder_hold_to_accumulator = 1;
+          end
+
+          default: begin
+          end
+        endcase
       end
 
       1: begin
-        case (read_instruction)
+        case (current_instruction)
           `OP_NOP: begin
             next_instruction_stage = 0;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
           end
           `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
             if (data_valid_i) begin
@@ -204,7 +198,7 @@ module cpu #(
               bus_read = 1;
               accumulator_to_alu_input_a = 1;
               data_to_alu_input_b = 1;
-              alu_to_accumulator = 1;
+              alu_result_to_adder_hold = 1;
             end
           end
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
@@ -218,9 +212,9 @@ module cpu #(
           `OP_LDA_ZPX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              // TODO: If the ALU is entirely combinational, why did this need
-              // an extra cycle then?  I wonder if the high and low portions
-              // of the address register can't be updated at the same time?
+              x_to_alu_input_a = 1;
+              data_to_alu_input_b = 1;
+              alu_result_to_adder_hold = 1;
             end
           end
           `OP_LDA_ABS: begin
@@ -245,7 +239,7 @@ module cpu #(
       end
 
       2: begin
-        case (read_instruction)
+        case (current_instruction)
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
@@ -262,9 +256,7 @@ module cpu #(
           end
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
-            x_to_alu_input_a = 1;
-            data_to_alu_input_b = 1;
-            alu_to_address_low = 1;
+            adder_hold_to_address_low = 1;
             zero_to_address_high = 1;
             bus_read = 1;
           end
@@ -293,7 +285,7 @@ module cpu #(
       end
 
       3: begin
-        case (read_instruction)
+        case (current_instruction)
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
@@ -387,13 +379,8 @@ module cpu #(
     next_program_counter_low = program_counter_low;
     next_program_counter_high = program_counter_high;
     next_adder_hold = adder_hold;
+    next_instruction = current_instruction;
 
-    if (alu_to_address_low) begin
-      next_address_low = alu_result;
-    end
-    if (alu_to_accumulator) begin
-      next_accumulator = alu_result;
-    end
     if (data_to_accumulator) begin
       next_accumulator = data_i;
     end
@@ -447,6 +434,15 @@ module cpu #(
     if (adder_hold_to_address_low) begin
       next_address_low = adder_hold;
     end
+    if (data_to_next_instruction) begin
+      next_instruction = data_i;
+    end
+    if (adder_hold_to_accumulator) begin
+      next_accumulator = adder_hold;
+    end
+    if (alu_result_to_adder_hold) begin
+      next_adder_hold = alu_result;
+    end
   end
 
   always_ff @(posedge clock_i) begin
@@ -462,7 +458,7 @@ module cpu #(
       // Based on W65C02, but close enough for now
       status <= 8'bXX1101XX;
     end else if (clock_ready == 1) begin
-      current_instruction <= read_instruction;
+      current_instruction <= next_instruction;
       instruction_stage <= next_instruction_stage;
       accumulator <= next_accumulator;
       index_x <= next_index_x;
