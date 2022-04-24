@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
-OSS_CAD_BUNDLE_VERSION := 20220408
-OSS_CAD_BUNDLE_RELEASE := 2022-04-08
+OSS_CAD_BUNDLE_VERSION := 20220423
+OSS_CAD_BUNDLE_RELEASE := 2022-04-23
 OSS_CAD_BUNDLE_URL := https://github.com/YosysHQ/oss-cad-suite-build/releases/download/$(OSS_CAD_BUNDLE_RELEASE)/oss-cad-suite-linux-x64-$(OSS_CAD_BUNDLE_VERSION).tgz
 OSS_CAD_INSTALL_META := build/meta/oss-cad-$(OSS_CAD_BUNDLE_VERSION)
 OSS_CAD_INSTALL_ROOT := build/oss-cad-suite
@@ -20,8 +20,8 @@ ECP5PLL_URL := https://gist.githubusercontent.com/thoughtpolice/b1cec8d45f2741c3
 ECP5PLL_SCRIPT := build/ecp5pll.py
 
 CC65_REMOTE := https://github.com/cc65/cc65.git
-CC65_COMMIT := 06d423d503e92ff22f6982baeab6dd30993841f0
-CC65_BUILD_META := build/meta/cc65
+CC65_COMMIT := 451acb3423d503fc37995cc2cb79bb259138863b
+CC65_BUILD_META := build/meta/cc65-$(CC65_COMMIT)
 CC65_PREFIX := build/cc65/bin/
 
 SV_SOURCES := $(shell find boards src -name '*.sv')
@@ -117,6 +117,6 @@ build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) 
 			-CFLAGS '-I$(abspath build) -I$(abspath test/lib) -g' \
 			-LDFLAGS '-g'
 
-$(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg | build/payloads
+$(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg $(CC65_BUILD_META) | build/payloads
 	$(CC65_PREFIX)ca65 -g -o $@.o $<
 	$(CC65_PREFIX)ld65 -C test/payloads/linker_script.cfg -o $@ $@.o
