@@ -12,6 +12,9 @@
 `define OP_JMP_ABS 8'h4C
 `define OP_STA_ZP 8'h85
 `define OP_TAX 8'hAA
+`define OP_TAY 8'hA8
+`define OP_TXA 8'h8A
+`define OP_TYA 8'h98
 
 `define STATUS_ZERO 1
 `define STATUS_NEGATIVE 7
@@ -128,6 +131,8 @@ module cpu #(
   logic ff_to_address_high;
   logic increment_pc_to_address;
   logic increment_pc_to_pc;
+  logic index_x_to_accumulator;
+  logic index_y_to_accumulator;
   logic one_to_alu_input_b;
   logic pc_low_to_address_low;
   logic x_to_alu_input_a;
@@ -161,6 +166,8 @@ module cpu #(
     ff_to_address_high = 0;
     increment_pc_to_address = 0;
     increment_pc_to_pc = 0;
+    index_x_to_accumulator = 0;
+    index_y_to_accumulator = 0;
     one_to_alu_input_b = 0;
     pc_low_to_address_low = 0;
     x_to_alu_input_a = 0;
@@ -173,11 +180,15 @@ module cpu #(
         if (data_valid_i) begin
           next_instruction_stage   = 1;
           data_to_next_instruction = 1;
-          if (data_i != `OP_NOP && data_i != `OP_TAX) begin
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
+          case (data_i)
+            `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA: begin
+            end
+            default begin
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+            end
+          endcase
         end
 
         case (current_instruction)
@@ -269,6 +280,27 @@ module cpu #(
           `OP_TAX: begin
             next_instruction_stage = 0;
             accumulator_to_index_x = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+          `OP_TAY: begin
+            next_instruction_stage = 0;
+            accumulator_to_index_y = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+          `OP_TXA: begin
+            next_instruction_stage = 0;
+            index_x_to_accumulator = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+          `OP_TYA: begin
+            next_instruction_stage = 0;
+            index_y_to_accumulator = 1;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
@@ -552,6 +584,12 @@ module cpu #(
     end
     if (accumulator_to_index_y) begin
       next_index_y = accumulator;
+    end
+    if (index_x_to_accumulator) begin
+      next_accumulator = index_x;
+    end
+    if (index_y_to_accumulator) begin
+      next_accumulator = index_y;
     end
   end
 

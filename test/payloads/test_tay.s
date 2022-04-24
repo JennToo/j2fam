@@ -1,0 +1,10 @@
+.segment "CODE"
+reset:
+    lda #42
+    tay
+
+.asciiz "END OF TEST"
+
+.segment "VECTORS"
+.word 0
+.word reset
