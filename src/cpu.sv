@@ -1,19 +1,21 @@
-`define OP_NOP 8'hEA
+`define OP_ADC_IMM 8'h69
+`define OP_JMP_ABS 8'h4C
+`define OP_LDA_ABS 8'hAD
+`define OP_LDA_IDX 8'hA1
 `define OP_LDA_IMM 8'hA9
 `define OP_LDA_ZP 8'hA5
 `define OP_LDA_ZPX 8'hB5
-`define OP_LDA_ABS 8'hAD
-`define OP_LDA_IDX 8'hA1
 `define OP_LDX_IMM 8'hA2
 `define OP_LDX_ZP 8'hA6
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
-`define OP_ADC_IMM 8'h69
-`define OP_JMP_ABS 8'h4C
+`define OP_NOP 8'hEA
 `define OP_STA_ZP 8'h85
 `define OP_TAX 8'hAA
 `define OP_TAY 8'hA8
+`define OP_TSX 8'hBA
 `define OP_TXA 8'h8A
+`define OP_TXS 8'h9A
 `define OP_TYA 8'h98
 
 `define STATUS_ZERO 1
@@ -101,6 +103,7 @@ module cpu #(
   logic [7:0] next_output_data;
   logic [7:0] next_program_counter_high;
   logic [7:0] next_program_counter_low;
+  logic [7:0] next_stack_pointer;
   logic [7:0] next_status;
   logic new_carry;
 
@@ -132,9 +135,11 @@ module cpu #(
   logic increment_pc_to_address;
   logic increment_pc_to_pc;
   logic index_x_to_accumulator;
+  logic index_x_to_stack_pointer;
   logic index_y_to_accumulator;
   logic one_to_alu_input_b;
   logic pc_low_to_address_low;
+  logic stack_pointer_to_index_x;
   logic x_to_alu_input_a;
   logic zero_to_address_high;
 
@@ -167,9 +172,11 @@ module cpu #(
     increment_pc_to_address = 0;
     increment_pc_to_pc = 0;
     index_x_to_accumulator = 0;
+    index_x_to_stack_pointer = 0;
     index_y_to_accumulator = 0;
     one_to_alu_input_b = 0;
     pc_low_to_address_low = 0;
+    stack_pointer_to_index_x = 0;
     x_to_alu_input_a = 0;
     zero_to_address_high = 0;
 
@@ -181,7 +188,7 @@ module cpu #(
           next_instruction_stage   = 1;
           data_to_next_instruction = 1;
           case (data_i)
-            `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA: begin
+            `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA, `OP_TXS, `OP_TSX: begin
             end
             default begin
               increment_pc_to_pc = 1;
@@ -301,6 +308,20 @@ module cpu #(
           `OP_TYA: begin
             next_instruction_stage = 0;
             index_y_to_accumulator = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+          `OP_TXS: begin
+            next_instruction_stage = 0;
+            index_x_to_stack_pointer = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+          `OP_TSX: begin
+            next_instruction_stage = 0;
+            stack_pointer_to_index_x = 1;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
@@ -503,16 +524,17 @@ module cpu #(
   // Register write sorting
   always_comb begin
     next_accumulator = accumulator;
+    next_adder_hold = adder_hold;
+    next_address_high = address_high;
+    next_address_low = address_low;
     next_index_x = index_x;
     next_index_y = index_y;
-    next_status = status;
-    next_address_low = address_low;
-    next_address_high = address_high;
-    next_program_counter_low = program_counter_low;
-    next_program_counter_high = program_counter_high;
-    next_adder_hold = adder_hold;
     next_instruction = current_instruction;
     next_output_data = data_output;
+    next_program_counter_high = program_counter_high;
+    next_program_counter_low = program_counter_low;
+    next_stack_pointer = stack_pointer;
+    next_status = status;
 
     if (data_to_accumulator) begin
       next_accumulator = data_i;
@@ -591,6 +613,12 @@ module cpu #(
     if (index_y_to_accumulator) begin
       next_accumulator = index_y;
     end
+    if (stack_pointer_to_index_x) begin
+      next_index_x = stack_pointer;
+    end
+    if (index_x_to_stack_pointer) begin
+      next_stack_pointer = index_x;
+    end
   end
 
   always_ff @(posedge clock_i) begin
@@ -606,20 +634,21 @@ module cpu #(
       // Based on W65C02, but close enough for now
       status <= 8'bXX1101XX;
     end else if (clock_ready == 1) begin
-      current_instruction <= next_instruction;
-      instruction_stage <= next_instruction_stage;
       accumulator <= next_accumulator;
-      index_x <= next_index_x;
-      index_y <= next_index_y;
-      status <= next_status;
-      program_counter_low <= next_program_counter_low;
-      program_counter_high <= next_program_counter_high;
-      address_low <= next_address_low;
+      adder_hold <= next_adder_hold;
       address_high <= next_address_high;
+      address_low <= next_address_low;
       bus_read_o <= bus_read;
       bus_write_o <= bus_write;
-      adder_hold <= next_adder_hold;
+      current_instruction <= next_instruction;
       data_output <= next_output_data;
+      index_x <= next_index_x;
+      index_y <= next_index_y;
+      instruction_stage <= next_instruction_stage;
+      program_counter_high <= next_program_counter_high;
+      program_counter_low <= next_program_counter_low;
+      stack_pointer <= next_stack_pointer;
+      status <= next_status;
     end
   end
 

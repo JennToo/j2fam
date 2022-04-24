@@ -219,4 +219,17 @@ TEST_CASE("Test CPU minimal instructions") {
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 42);
   }
+  SECTION("Check TXS") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_txs");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
+    CHECK(driver.instance.stack_pointer_o == 42);
+  }
+  SECTION("Check TSX") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_tsx");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count ==
+          2 + 2 + 2 + 2 + RESET_CYCLE_OVERHEAD);
+    CHECK(driver.instance.stack_pointer_o == 42);
+  }
 }
