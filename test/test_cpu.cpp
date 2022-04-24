@@ -183,4 +183,10 @@ TEST_CASE("Test CPU minimal instructions") {
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
   }
+  SECTION("Check STA zeropage") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_sta_zp");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 3 + 3 + RESET_CYCLE_OVERHEAD);
+    CHECK(bus_emulator->memory[0x42] == 74);
+  }
 }

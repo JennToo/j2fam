@@ -9,6 +9,7 @@
 `define OP_LDY_ZP 8'hA4
 `define OP_ADC_IMM 8'h69
 `define OP_JMP_ABS 8'h4C
+`define OP_STA_ZP 8'h85
 
 `define STATUS_ZERO 1
 `define STATUS_NEGATIVE 7
@@ -74,6 +75,7 @@ module cpu #(
   logic [ 7:0] address_high;
   logic [ 7:0] address_low;
   logic [ 7:0] adder_hold;
+  logic [ 7:0] data_output;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = {program_counter_high, program_counter_low} + 1;
@@ -90,6 +92,7 @@ module cpu #(
   logic [7:0] next_index_y;
   logic [7:0] next_status;
   logic [7:0] next_adder_hold;
+  logic [7:0] next_output_data;
   logic [7:0] data_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
@@ -98,11 +101,13 @@ module cpu #(
 
   // Control signals
   logic accumulator_to_alu_input_a;
+  logic accumulator_to_data;
   logic adder_hold_to_accumulator;
   logic adder_hold_to_address_low;
   logic alu_result_to_adder_hold;
   logic alu_status_to_status;
   logic bus_read;
+  logic bus_write;
   logic data_status_to_status;
   logic data_to_accumulator;
   logic data_to_adder_hold;
@@ -125,11 +130,13 @@ module cpu #(
   always_comb begin
     // Control signals
     accumulator_to_alu_input_a = 0;
+    accumulator_to_data = 0;
     adder_hold_to_accumulator = 0;
     adder_hold_to_address_low = 0;
     alu_result_to_adder_hold = 0;
     alu_status_to_status = 0;
     bus_read = 0;
+    bus_write = 0;
     data_status_to_status = 0;
     data_to_accumulator = 0;
     data_to_adder_hold = 0;
@@ -190,6 +197,15 @@ module cpu #(
                 default: begin
                 end
               endcase
+            end
+          end
+          `OP_STA_ZP: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 2;
+              data_to_address_low = 1;
+              zero_to_address_high = 1;
+              accumulator_to_data = 1;
+              bus_write = 1;
             end
           end
           `OP_ADC_IMM: begin
@@ -262,6 +278,13 @@ module cpu #(
             zero_to_address_high = 1;
             bus_read = 1;
           end
+          `OP_STA_ZP: begin
+            // It's not clear why we need to wait here. It's possible the
+            // original hardware can't setup a write to the data register on
+            // the same cycle that it's sending that data to the low address
+            // register. We have no such weakness
+            next_instruction_stage = 3;
+          end
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 3;
@@ -288,6 +311,12 @@ module cpu #(
 
       3: begin
         case (current_instruction)
+          `OP_STA_ZP: begin
+            next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
@@ -382,6 +411,7 @@ module cpu #(
     next_program_counter_high = program_counter_high;
     next_adder_hold = adder_hold;
     next_instruction = current_instruction;
+    next_output_data = data_output;
 
     if (data_to_accumulator) begin
       next_accumulator = data_i;
@@ -445,6 +475,9 @@ module cpu #(
     if (alu_result_to_adder_hold) begin
       next_adder_hold = alu_result;
     end
+    if (accumulator_to_data) begin
+      next_output_data = accumulator;
+    end
   end
 
   always_ff @(posedge clock_i) begin
@@ -471,11 +504,14 @@ module cpu #(
       address_low <= next_address_low;
       address_high <= next_address_high;
       bus_read_o <= bus_read;
+      bus_write_o <= bus_write;
       adder_hold <= next_adder_hold;
+      data_output <= next_output_data;
     end
   end
 
   assign address_o = {address_high, address_low};
+  assign data_o = data_output;
 
 `ifdef SIMULATION
   assign clock_ready_o = clock_ready;
