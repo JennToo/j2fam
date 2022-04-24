@@ -11,6 +11,7 @@
 `define OP_ADC_IMM 8'h69
 `define OP_JMP_ABS 8'h4C
 `define OP_STA_ZP 8'h85
+`define OP_TAX 8'hAA
 
 `define STATUS_ZERO 1
 `define STATUS_NEGATIVE 7
@@ -103,6 +104,8 @@ module cpu #(
   // Control signals
   logic accumulator_to_alu_input_a;
   logic accumulator_to_data;
+  logic accumulator_to_index_x;
+  logic accumulator_to_index_y;
   logic adder_hold_to_accumulator;
   logic adder_hold_to_address_low;
   logic adder_hold_to_alu_input_a;
@@ -134,6 +137,8 @@ module cpu #(
     // Control signals
     accumulator_to_alu_input_a = 0;
     accumulator_to_data = 0;
+    accumulator_to_index_x = 0;
+    accumulator_to_index_y = 0;
     adder_hold_to_accumulator = 0;
     adder_hold_to_address_low = 0;
     adder_hold_to_alu_input_a = 0;
@@ -166,11 +171,13 @@ module cpu #(
     case (instruction_stage)
       0: begin
         if (data_valid_i) begin
-          next_instruction_stage = 1;
-          increment_pc_to_pc = 1;
-          increment_pc_to_address = 1;
-          bus_read = 1;
+          next_instruction_stage   = 1;
           data_to_next_instruction = 1;
+          if (data_i != `OP_NOP && data_i != `OP_TAX) begin
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
         end
 
         case (current_instruction)
@@ -187,6 +194,9 @@ module cpu #(
         case (current_instruction)
           `OP_NOP: begin
             next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
           end
           `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
             if (data_valid_i) begin
@@ -256,6 +266,14 @@ module cpu #(
               bus_read = 1;
             end
           end
+          `OP_TAX: begin
+            next_instruction_stage = 0;
+            accumulator_to_index_x = 1;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+          end
+
           default begin
           end
         endcase
@@ -528,6 +546,12 @@ module cpu #(
     end
     if (accumulator_to_data) begin
       next_output_data = accumulator;
+    end
+    if (accumulator_to_index_x) begin
+      next_index_x = accumulator;
+    end
+    if (accumulator_to_index_y) begin
+      next_index_y = accumulator;
     end
   end
 

@@ -115,8 +115,7 @@ TEST_CASE("Test CPU minimal instructions") {
   SECTION("Check NOP") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_nop");
     run_to_end(driver, bus_emulator, 120);
-    // This takes two clocks really, but we fetch early
-    CHECK(bus_emulator->test_clock_ready_count == 1 + RESET_CYCLE_OVERHEAD);
+    CHECK(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
   }
   SECTION("Check LDA immediate") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_imm");
@@ -195,5 +194,11 @@ TEST_CASE("Test CPU minimal instructions") {
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 3 + RESET_CYCLE_OVERHEAD);
     CHECK(bus_emulator->memory[0x42] == 74);
+  }
+  SECTION("Check TAX") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_tax");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
+    CHECK(driver.instance.index_x_o == 42);
   }
 }
