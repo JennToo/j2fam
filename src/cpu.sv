@@ -61,43 +61,43 @@ module cpu #(
   `define RESET_STAGE_2 7
 
   // "External" registers
-  logic [ 7:0] program_counter_low;
-  logic [ 7:0] program_counter_high;
   logic [ 7:0] accumulator;
   logic [ 7:0] index_x;
   logic [ 7:0] index_y;
-  logic [ 7:0] status;
+  logic [ 7:0] program_counter_high;
+  logic [ 7:0] program_counter_low;
   logic [ 7:0] stack_pointer;
+  logic [ 7:0] status;
 
   // Internal registers
   logic [ 2:0] instruction_stage;
-  logic [ 7:0] current_instruction;
+  logic [ 7:0] adder_hold;
   logic [ 7:0] address_high;
   logic [ 7:0] address_low;
-  logic [ 7:0] adder_hold;
+  logic [ 7:0] current_instruction;
   logic [ 7:0] data_output;
 
   logic [15:0] incremented_program_counter;
   assign incremented_program_counter = {program_counter_high, program_counter_low} + 1;
 
-  logic [7:0] next_instruction;
   logic [2:0] next_instruction_stage;
-  logic new_carry;
-  logic [7:0] next_address_low;
-  logic [7:0] next_address_high;
-  logic [7:0] next_program_counter_high;
-  logic [7:0] next_program_counter_low;
-  logic [7:0] next_accumulator;
-  logic [7:0] next_index_x;
-  logic [7:0] next_index_y;
-  logic [7:0] next_status;
-  logic [7:0] next_adder_hold;
-  logic [7:0] next_output_data;
-  logic [7:0] data_status;
   logic [7:0] alu_input_a;
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
   logic [7:0] alu_result_status;
+  logic [7:0] data_status;
+  logic [7:0] next_accumulator;
+  logic [7:0] next_adder_hold;
+  logic [7:0] next_address_high;
+  logic [7:0] next_address_low;
+  logic [7:0] next_index_x;
+  logic [7:0] next_index_y;
+  logic [7:0] next_instruction;
+  logic [7:0] next_output_data;
+  logic [7:0] next_program_counter_high;
+  logic [7:0] next_program_counter_low;
+  logic [7:0] next_status;
+  logic new_carry;
 
   // Control signals
   logic accumulator_to_alu_input_a;
