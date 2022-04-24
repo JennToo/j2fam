@@ -3,6 +3,7 @@
 `define OP_LDA_ZP 8'hA5
 `define OP_LDA_ZPX 8'hB5
 `define OP_LDA_ABS 8'hAD
+`define OP_LDA_IDX 8'hA1
 `define OP_LDX_IMM 8'hA2
 `define OP_LDX_ZP 8'hA6
 `define OP_LDY_IMM 8'hA0
@@ -104,6 +105,7 @@ module cpu #(
   logic accumulator_to_data;
   logic adder_hold_to_accumulator;
   logic adder_hold_to_address_low;
+  logic adder_hold_to_alu_input_a;
   logic alu_result_to_adder_hold;
   logic alu_status_to_status;
   logic bus_read;
@@ -123,6 +125,7 @@ module cpu #(
   logic ff_to_address_high;
   logic increment_pc_to_address;
   logic increment_pc_to_pc;
+  logic one_to_alu_input_b;
   logic pc_low_to_address_low;
   logic x_to_alu_input_a;
   logic zero_to_address_high;
@@ -133,6 +136,7 @@ module cpu #(
     accumulator_to_data = 0;
     adder_hold_to_accumulator = 0;
     adder_hold_to_address_low = 0;
+    adder_hold_to_alu_input_a = 0;
     alu_result_to_adder_hold = 0;
     alu_status_to_status = 0;
     bus_read = 0;
@@ -152,6 +156,7 @@ module cpu #(
     ff_to_address_high = 0;
     increment_pc_to_address = 0;
     increment_pc_to_pc = 0;
+    one_to_alu_input_b = 0;
     pc_low_to_address_low = 0;
     x_to_alu_input_a = 0;
     zero_to_address_high = 0;
@@ -227,7 +232,7 @@ module cpu #(
               bus_read = 1;
             end
           end
-          `OP_LDA_ZPX: begin
+          `OP_LDA_ZPX, `OP_LDA_IDX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
               x_to_alu_input_a = 1;
@@ -277,6 +282,17 @@ module cpu #(
             adder_hold_to_address_low = 1;
             zero_to_address_high = 1;
             bus_read = 1;
+          end
+          `OP_LDA_IDX: begin
+            next_instruction_stage = 3;
+            // Read low byte of indirect address
+            adder_hold_to_address_low = 1;
+            zero_to_address_high = 1;
+            bus_read = 1;
+            // Prepare for high byte access
+            one_to_alu_input_b = 1;
+            adder_hold_to_alu_input_a = 1;
+            alu_result_to_adder_hold = 1;
           end
           `OP_STA_ZP: begin
             // It's not clear why we need to wait here. It's possible the
@@ -338,7 +354,43 @@ module cpu #(
               end
             endcase
           end
+          `OP_LDA_IDX: begin
+            next_instruction_stage = 4;
+            // Read second byte of indirect address
+            adder_hold_to_address_low = 1;
+            zero_to_address_high = 1;
+            bus_read = 1;
+            // Save first byte of indirect address
+            data_to_adder_hold = 1;
+          end
 
+          default begin
+          end
+        endcase
+      end
+
+      4: begin
+        case (current_instruction)
+          `OP_LDA_IDX: begin
+            next_instruction_stage = 5;
+            adder_hold_to_address_low = 1;
+            data_to_address_high = 1;
+            bus_read = 1;
+          end
+          default begin
+          end
+        endcase
+      end
+
+      5: begin
+        case (current_instruction)
+          `OP_LDA_IDX: begin
+            next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+            data_to_accumulator = 1;
+          end
           default begin
           end
         endcase
@@ -388,6 +440,12 @@ module cpu #(
     end
     if (data_to_alu_input_b) begin
       alu_input_b = data_i;
+    end
+    if (adder_hold_to_alu_input_a) begin
+      alu_input_a = adder_hold;
+    end
+    if (one_to_alu_input_b) begin
+      alu_input_b = 1;
     end
 
     {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};

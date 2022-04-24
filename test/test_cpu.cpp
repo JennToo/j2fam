@@ -146,6 +146,13 @@ TEST_CASE("Test CPU minimal instructions") {
     CHECK(driver.instance.accumulator_o == 74);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 4 + RESET_CYCLE_OVERHEAD);
   }
+  SECTION("Check LDA indirect,X") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_idx");
+    run_to_end(driver, bus_emulator, 500);
+    CHECK(driver.instance.accumulator_o == 42);
+    CHECK(bus_emulator->test_clock_ready_count ==
+          2 + 3 + 2 + 3 + 2 + 6 + RESET_CYCLE_OVERHEAD);
+  }
   SECTION("Check LDX immediate") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_imm");
     run_to_end(driver, bus_emulator, 120);
@@ -186,7 +193,7 @@ TEST_CASE("Test CPU minimal instructions") {
   SECTION("Check STA zeropage") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_sta_zp");
     run_to_end(driver, bus_emulator, 120);
-    CHECK(bus_emulator->test_clock_ready_count == 3 + 3 + RESET_CYCLE_OVERHEAD);
+    CHECK(bus_emulator->test_clock_ready_count == 2 + 3 + RESET_CYCLE_OVERHEAD);
     CHECK(bus_emulator->memory[0x42] == 74);
   }
 }
