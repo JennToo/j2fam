@@ -10,6 +10,7 @@
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
 `define OP_NOP 8'hEA
+`define OP_SBC_IMM 8'hE9
 `define OP_STA_ZP 8'h85
 `define OP_TAX 8'hAA
 `define OP_TAY 8'hA8
@@ -115,6 +116,8 @@ module cpu #(
   logic adder_hold_to_accumulator;
   logic adder_hold_to_address_low;
   logic adder_hold_to_alu_input_a;
+  logic alu_carry_flag;
+  logic alu_invert_b;
   logic alu_result_to_adder_hold;
   logic alu_status_to_status;
   logic bus_read;
@@ -152,6 +155,7 @@ module cpu #(
     adder_hold_to_accumulator = 0;
     adder_hold_to_address_low = 0;
     adder_hold_to_alu_input_a = 0;
+    alu_invert_b = 0;
     alu_result_to_adder_hold = 0;
     alu_status_to_status = 0;
     bus_read = 0;
@@ -199,7 +203,7 @@ module cpu #(
         end
 
         case (current_instruction)
-          `OP_ADC_IMM: begin
+          `OP_ADC_IMM, `OP_SBC_IMM: begin
             adder_hold_to_accumulator = 1;
           end
 
@@ -249,6 +253,18 @@ module cpu #(
               bus_read = 1;
               accumulator_to_alu_input_a = 1;
               data_to_alu_input_b = 1;
+              alu_result_to_adder_hold = 1;
+            end
+          end
+          `OP_SBC_IMM: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+              accumulator_to_alu_input_a = 1;
+              data_to_alu_input_b = 1;
+              alu_invert_b = 1;
               alu_result_to_adder_hold = 1;
             end
           end
@@ -496,6 +512,8 @@ module cpu #(
   always_comb begin
     alu_input_a = 0;
     alu_input_b = 0;
+    alu_carry_flag = status[`STATUS_CARRY];
+
     if (accumulator_to_alu_input_a) begin
       alu_input_a = accumulator;
     end
@@ -511,8 +529,12 @@ module cpu #(
     if (one_to_alu_input_b) begin
       alu_input_b = 1;
     end
+    if (alu_invert_b) begin
+      alu_input_b = ~alu_input_b;
+      alu_carry_flag = ~alu_carry_flag;
+    end
 
-    {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, status[`STATUS_CARRY]};
+    {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, alu_carry_flag};
     alu_result_status = status;
     alu_result_status[`STATUS_CARRY] = new_carry;
     alu_result_status[`STATUS_NEGATIVE] = alu_result[7];

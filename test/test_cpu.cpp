@@ -184,6 +184,12 @@ TEST_CASE("Test CPU minimal instructions") {
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 216);
   }
+  SECTION("Check SBC immediate") {
+    bus_emulator->load_file(0x7FF0, "build/payloads/test_sbc_imm");
+    run_to_end(driver, bus_emulator, 120);
+    CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
+    CHECK(driver.instance.accumulator_o == 68);
+  }
   SECTION("Check JMP absolute") {
     bus_emulator->load_file(0x7FF0, "build/payloads/test_jmp_abs");
     run_to_end(driver, bus_emulator, 120);
