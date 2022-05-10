@@ -99,23 +99,16 @@ ulx3s: build/ulx3s/stream.bit
 test: test-cpu
 
 .PHONY: test-cpu
-test-cpu: build/tests/test_cpu/obj_dir/Vcpu
-	build/tests/test_cpu/obj_dir/Vcpu
+test-cpu: build/cmake/test_cpu
+	build/cmake/test_cpu
 
-build/tests/test_cpu/obj_dir/Vcpu: test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_BINARIES)
+build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_BINARIES)
+	$(MAKE) -C build/cmake
+
+build/cmake/Makefile: CMakeLists.txt
+	rm -rf build/cmake
 	mkdir -p $(@D)
-	+$(OSS_CAD_CMD) \
-		cd $(@D)/.. && \
-		verilator \
-			--trace \
-			--cc $(abspath src/cpu.sv) \
-			--exe \
-			$(foreach SRC,$(TEST_LIB_SOURCES),$(abspath $(SRC))) \
-			$(abspath test/test_cpu.cpp) \
-			-DSIMULATION \
-			--build \
-			-CFLAGS '-I$(abspath build) -I$(abspath test/lib) -g' \
-			-LDFLAGS '-g'
+	cd $(@D) && cmake ../..
 
 $(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg $(CC65_BUILD_META) | build/payloads
 	$(CC65_PREFIX)ca65 -g -o $@.o $<
