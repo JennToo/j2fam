@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.16)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 include(ExternalProject)
+include(FetchContent)
+
+include(OssCad)
 include(cc65)
 
 project(j2fam)
@@ -19,7 +22,7 @@ foreach(PAYLOAD ${TEST_PAYLOADS})
 endforeach()
 add_custom_target(test-payloads ALL true DEPENDS ${PAYLOAD_BINARIES})
 
-find_package(verilator REQUIRED HINTS ${CMAKE_SOURCE_DIR}/build/oss-cad-suite/share/verilator)
+find_package(verilator REQUIRED HINTS ${osscadsuite_SOURCE_DIR}/share/verilator)
 
 add_executable(test_cpu ${CMAKE_SOURCE_DIR}/test/test_cpu.cpp ${CMAKE_SOURCE_DIR}/test/lib/catch_main.cpp)
 target_include_directories(test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/test/lib ${CMAKE_SOURCE_DIR}/build/)

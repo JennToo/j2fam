@@ -91,7 +91,7 @@ test-cpu: build/cmake/test_cpu
 build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_SOURCES)
 	$(MAKE) -C build/cmake
 
-build/cmake/Makefile: CMakeLists.txt $(OSS_CAD_INSTALL_META)
+build/cmake/Makefile: CMakeLists.txt
 	rm -rf build/cmake
 	mkdir -p $(@D)
 	cd $(@D) && cmake ../..
