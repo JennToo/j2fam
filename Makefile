@@ -32,8 +32,6 @@ check: $(VERIBLE_INSTALL_META) $(OSS_CAD_INSTALL_META)
 .PHONY: format
 format: $(VERIBLE_INSTALL_META)
 	$(VERIBLE_INSTALL_ROOT)/bin/verible-verilog-format --inplace $(SV_SOURCES)
-	clang-format -i $(CPP_SOURCES)
-	clang-format -i $(HPP_SOURCES)
 
 .PHONY: test
 test: test-cpu
