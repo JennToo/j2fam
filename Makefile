@@ -12,10 +12,6 @@ VERIBLE_URL := https://github.com/chipsalliance/verible/releases/download/$(VERI
 VERIBLE_INSTALL_META := build/meta/verible-$(VERIBLE_VERSION)
 VERIBLE_INSTALL_ROOT := build/verible
 
-CATCH_VERSION := 2.13.8
-CATCH_URL := https://github.com/catchorg/Catch2/releases/download/v$(CATCH_VERSION)/catch.hpp
-CATCH_HEADER := build/catch.hpp
-
 ECP5PLL_URL := https://gist.githubusercontent.com/thoughtpolice/b1cec8d45f2741c3726c0cc2ac83d7f2/raw/6dd565cf7bfeee37f00720af008abb47a9405f45/ecp5pll.py
 ECP5PLL_SCRIPT := build/ecp5pll.py
 
@@ -40,9 +36,6 @@ $(VERIBLE_INSTALL_META): | build/meta $(VERIBLE_INSTALL_ROOT)
 	mkdir -p $(VERIBLE_INSTALL_ROOT)
 	curl -L --fail $(VERIBLE_URL) | tar -C $(VERIBLE_INSTALL_ROOT) -xzf - --strip-components=1
 	touch $@
-
-$(CATCH_HEADER): | build
-	curl -L --fail -o $@ $(CATCH_URL)
 
 $(ECP5PLL_SCRIPT): | build
 	curl -L --fail -o $@ $(ECP5PLL_URL)
@@ -88,10 +81,10 @@ test: test-cpu
 test-cpu: build/cmake/test_cpu
 	build/cmake/test_cpu
 
-build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_SOURCES)
+build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_SOURCES) CMakeLists.txt
 	$(MAKE) -C build/cmake
 
-build/cmake/Makefile: CMakeLists.txt
+build/cmake/Makefile:
 	rm -rf build/cmake
 	mkdir -p $(@D)
 	cd $(@D) && cmake ../..
