@@ -9,6 +9,7 @@ include(FetchContent)
 include(OssCad)
 include(cc65)
 include(gtest)
+include(Trellis)
 
 project(j2fam)
 
@@ -30,3 +31,12 @@ add_executable(test_cpu ${CMAKE_SOURCE_DIR}/test/test_cpu.cpp)
 target_link_libraries(test_cpu PRIVATE gtest_main)
 target_include_directories(test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/test/lib)
 verilate(test_cpu SOURCES src/cpu.sv TRACE VERILATOR_ARGS -DSIMULATION)
+
+add_trellis_bitstream(
+    ulx3s-bitstream
+    TOPLEVEL toplevel
+    SOURCES boards/ulx3s/toplevel.sv src/cpu.sv
+    SYNTH_OPTIONS -noccu2 -nomux -nodram
+    LPF boards/ulx3s/ulx3s_v20.lpf
+    PNR_OPTIONS --85k --package CABGA381
+)

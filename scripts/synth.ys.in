@@ -1,0 +1,4 @@
+connect_rpc -exec python3 ${CMAKE_BINARY_DIR}/ecp5pll.py
+read_verilog -sv ${TRELLIS_SOURCES_CLEAN}
+
+synth_ecp5 -top ${TRELLIS_TOPLEVEL} -noccu2 -nomux -nodram -json ${TRELLIS_YOSYS_OUTPUT}
