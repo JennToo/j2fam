@@ -8,6 +8,7 @@
 #include <fstream>
 #include <stdint.h>
 #include <strings.h>
+#include <sstream>
 
 const unsigned CLOCK_RATIO_DEFAULT = 12;
 const unsigned RESET_CYCLE_OVERHEAD = 2 + 1;
@@ -49,7 +50,9 @@ struct BusEmulator : Driver<Vcpu>::Listener {
   void load_file(size_t start_address, const char *file_name) {
     uint8_t *cursor = &memory[start_address];
     size_t read_size = BUS_SIZE - start_address;
-    std::ifstream file(file_name);
+    std::ostringstream full_file_name;
+    full_file_name << "build/cmake/test/payloads/" << file_name << ".nes";
+    std::ifstream file(full_file_name.str());
     REQUIRE(file);
     REQUIRE(file.read((char *)cursor, read_size));
     uint8_t *end_of_test = (uint8_t *)memmem(memory, BUS_SIZE, "END OF TEST",
@@ -113,12 +116,12 @@ TEST_CASE("Test CPU minimal instructions") {
   driver.instance.reset_i = 0;
 
   SECTION("Check NOP") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_nop");
+    bus_emulator->load_file(0x7FF0, "test_nop");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
   }
   SECTION("Check LDA immediate") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_imm");
+    bus_emulator->load_file(0x7FF0, "test_lda_imm");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 142);
@@ -126,113 +129,113 @@ TEST_CASE("Test CPU minimal instructions") {
   }
   SECTION("Check LDA zeropage") {
     bus_emulator->memory[0x42] = 74;
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_zp");
+    bus_emulator->load_file(0x7FF0, "test_lda_zp");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 74);
   }
   SECTION("Check LDA absolute") {
     bus_emulator->memory[0x42] = 74;
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_abs");
+    bus_emulator->load_file(0x7FF0, "test_lda_abs");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 4 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 42);
   }
   SECTION("Check LDA zeropage,X") {
     bus_emulator->memory[0x42] = 74;
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_zpx");
+    bus_emulator->load_file(0x7FF0, "test_lda_zpx");
     run_to_end(driver, bus_emulator, 120);
     CHECK(driver.instance.accumulator_o == 74);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 4 + RESET_CYCLE_OVERHEAD);
   }
   SECTION("Check LDA indirect,X") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_lda_idx");
+    bus_emulator->load_file(0x7FF0, "test_lda_idx");
     run_to_end(driver, bus_emulator, 500);
     CHECK(driver.instance.accumulator_o == 42);
     CHECK(bus_emulator->test_clock_ready_count ==
           2 + 3 + 2 + 3 + 2 + 6 + RESET_CYCLE_OVERHEAD);
   }
   SECTION("Check LDX immediate") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_imm");
+    bus_emulator->load_file(0x7FF0, "test_ldx_imm");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_x_o == 42);
   }
   SECTION("Check LDX zeropage") {
     bus_emulator->memory[0x42] = 74;
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldx_zp");
+    bus_emulator->load_file(0x7FF0, "test_ldx_zp");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_x_o == 74);
   }
   SECTION("Check LDY immediate") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldy_imm");
+    bus_emulator->load_file(0x7FF0, "test_ldy_imm");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_y_o == 42);
   }
   SECTION("Check LDY zeropage") {
     bus_emulator->memory[0x42] = 74;
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_ldy_zp");
+    bus_emulator->load_file(0x7FF0, "test_ldy_zp");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_y_o == 74);
   }
   SECTION("Check ADC immediate") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_adc_imm");
+    bus_emulator->load_file(0x7FF0, "test_adc_imm");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 216);
   }
   SECTION("Check SBC immediate") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_sbc_imm");
+    bus_emulator->load_file(0x7FF0, "test_sbc_imm");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 68);
   }
   SECTION("Check JMP absolute") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_jmp_abs");
+    bus_emulator->load_file(0x7FF0, "test_jmp_abs");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 3 + RESET_CYCLE_OVERHEAD);
   }
   SECTION("Check STA zeropage") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_sta_zp");
+    bus_emulator->load_file(0x7FF0, "test_sta_zp");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 3 + RESET_CYCLE_OVERHEAD);
     CHECK(bus_emulator->memory[0x42] == 74);
   }
   SECTION("Check TAX") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_tax");
+    bus_emulator->load_file(0x7FF0, "test_tax");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_x_o == 42);
   }
   SECTION("Check TAY") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_tay");
+    bus_emulator->load_file(0x7FF0, "test_tay");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.index_y_o == 42);
   }
   SECTION("Check TXA") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_txa");
+    bus_emulator->load_file(0x7FF0, "test_txa");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 42);
   }
   SECTION("Check TYA") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_tya");
+    bus_emulator->load_file(0x7FF0, "test_tya");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.accumulator_o == 42);
   }
   SECTION("Check TXS") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_txs");
+    bus_emulator->load_file(0x7FF0, "test_txs");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count == 2 + 2 + RESET_CYCLE_OVERHEAD);
     CHECK(driver.instance.stack_pointer_o == 42);
   }
   SECTION("Check TSX") {
-    bus_emulator->load_file(0x7FF0, "build/payloads/test_tsx");
+    bus_emulator->load_file(0x7FF0, "test_tsx");
     run_to_end(driver, bus_emulator, 120);
     CHECK(bus_emulator->test_clock_ready_count ==
           2 + 2 + 2 + 2 + RESET_CYCLE_OVERHEAD);

@@ -19,18 +19,12 @@ CATCH_HEADER := build/catch.hpp
 ECP5PLL_URL := https://gist.githubusercontent.com/thoughtpolice/b1cec8d45f2741c3726c0cc2ac83d7f2/raw/6dd565cf7bfeee37f00720af008abb47a9405f45/ecp5pll.py
 ECP5PLL_SCRIPT := build/ecp5pll.py
 
-CC65_REMOTE := https://github.com/cc65/cc65.git
-CC65_COMMIT := 451acb3423d503fc37995cc2cb79bb259138863b
-CC65_BUILD_META := build/meta/cc65-$(CC65_COMMIT)
-CC65_PREFIX := build/cc65/bin/
-
 SV_SOURCES := $(shell find boards src -name '*.sv')
 CPP_SOURCES := $(shell find test -name '*.cpp')
 HPP_SOURCES := $(shell find test -name '*.hpp')
 TEST_LIB_SOURCES := $(shell find test/lib -name '*.cpp')
 
 ASSEMBLY_PAYLOAD_SOURCES := $(shell find test/payloads -name '*.s')
-ASSEMBLY_PAYLOAD_BINARIES := $(ASSEMBLY_PAYLOAD_SOURCES:test/payloads/%.s=build/payloads/%)
 
 .PHONY: all
 all: $(OSS_CAD_INSTALL_META) $(VERIBLE_INSTALL_META)
@@ -52,14 +46,6 @@ $(CATCH_HEADER): | build
 
 $(ECP5PLL_SCRIPT): | build
 	curl -L --fail -o $@ $(ECP5PLL_URL)
-
-$(CC65_BUILD_META): | build/meta
-	rm -rf build/cc65
-	git clone $(CC65_REMOTE) build/cc65
-	cd build/cc65 && \
-		git checkout $(CC65_COMMIT)
-	$(MAKE) -C build/cc65
-	touch $@
 
 build/meta $(OSS_CAD_INSTALL_ROOT) $(VERIBLE_INSTALL_ROOT) build/ulx3s build/payloads:
 	mkdir -p $@
@@ -102,14 +88,10 @@ test: test-cpu
 test-cpu: build/cmake/test_cpu
 	build/cmake/test_cpu
 
-build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_BINARIES)
+build/cmake/test_cpu: build/cmake/Makefile test/test_cpu.cpp src/cpu.sv $(CATCH_HEADER) $(TEST_LIB_SOURCES) $(ASSEMBLY_PAYLOAD_SOURCES)
 	$(MAKE) -C build/cmake
 
-build/cmake/Makefile: CMakeLists.txt
+build/cmake/Makefile: CMakeLists.txt $(OSS_CAD_INSTALL_META)
 	rm -rf build/cmake
 	mkdir -p $(@D)
 	cd $(@D) && cmake ../..
-
-$(ASSEMBLY_PAYLOAD_BINARIES): build/payloads/%: test/payloads/%.s test/payloads/linker_script.cfg $(CC65_BUILD_META) | build/payloads
-	$(CC65_PREFIX)ca65 -g -o $@.o $<
-	$(CC65_PREFIX)ld65 -C test/payloads/linker_script.cfg -o $@ $@.o
