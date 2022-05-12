@@ -11,6 +11,7 @@ include(OssCad)
 include(cc65)
 include(gtest)
 include(Trellis)
+include(Verible)
 
 project(j2fam)
 
@@ -42,4 +43,9 @@ add_trellis_bitstream(
     SYNTH_OPTIONS -noccu2 -nomux -nodram
     LPF boards/ulx3s/ulx3s_v20.lpf
     PNR_OPTIONS --85k --package CABGA381
+)
+
+verible_check(
+    RULESET all
+    SOURCES boards/ulx3s/toplevel.sv src/cpu.sv
 )
