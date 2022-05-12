@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdint.h>
@@ -48,10 +49,11 @@ struct BusEmulator : Driver<Vcpu>::Listener {
   void load_file(size_t start_address, const char *file_name) {
     uint8_t *cursor = &memory[start_address];
     size_t read_size = BUS_SIZE - start_address;
-    std::ostringstream full_file_name_generator;
-    full_file_name_generator << PAYLOADS_DIRECTORY << "/" << file_name << ".nes";
-    std::string full_file_name = full_file_name_generator.str();
-    std::ifstream file(full_file_name);
+
+    std::filesystem::path full_file_path =
+        std::filesystem::path(PAYLOADS_DIRECTORY) /
+        std::filesystem::path(std::string(file_name) + std::string(".nes"));
+    std::ifstream file(full_file_path);
     ASSERT_TRUE(file);
     ASSERT_TRUE(file.read((char *)cursor, read_size));
     uint8_t *end_of_test = (uint8_t *)memmem(memory, BUS_SIZE, "END OF TEST",

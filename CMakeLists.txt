@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.16)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(FORMAT_SKIP_CMAKE true)
+set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 enable_testing()
 
