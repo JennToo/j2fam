@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(FORMAT_SKIP_CMAKE true)
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+set(CMAKE_CTEST_ARGUMENTS --output-on-failure)
 
 enable_testing()
 
@@ -40,6 +41,7 @@ add_executable(test_cpu
     test/cpu/bus_emulator.cpp
     test/cpu/fixture.hpp
     test/cpu/basic_tests.cpp
+    test/cpu/alu_tests.cpp
     test/cpu/fixture.cpp
     test/cpu/bus_emulator.hpp
 )

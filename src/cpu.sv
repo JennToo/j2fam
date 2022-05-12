@@ -654,7 +654,7 @@ module cpu #(
       index_y <= 0;
       stack_pointer <= 0;
       // Based on W65C02, but close enough for now
-      status <= 8'bXX1101XX;
+      status <= 8'b00110100;
     end else if (clock_ready == 1) begin
       accumulator <= next_accumulator;
       adder_hold <= next_adder_hold;
