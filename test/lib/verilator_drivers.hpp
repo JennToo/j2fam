@@ -2,10 +2,12 @@
 
 #include "verilated_vcd_c.h"
 
-#include <bits/stdint-uintn.h>
+#include <gtest/gtest.h>
+
+#include <filesystem>
 #include <memory>
-#include <sstream>
 #include <stdint.h>
+#include <string>
 #include <vector>
 
 const uint64_t TIMESCALE = 46560 / 2;
@@ -28,14 +30,18 @@ template <typename ModuleT> struct Driver {
 
   uint64_t global_tick_count = 0;
 
-  Driver(const char *vcd_dest) {
-    static unsigned vcd_counter = 0;
-    std::ostringstream oss;
-    oss << vcd_dest << "trace_" << vcd_counter << ".vcd";
-    vcd_counter++;
+  Driver(const std::filesystem::path &vcd_directory) {
+    std::filesystem::path trace_dir =
+        std::filesystem::path(VCD_TRACE_OUTPUT) / vcd_directory;
+    std::filesystem::create_directories(trace_dir);
+    auto test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    std::filesystem::path filename =
+        std::string(test_info->test_suite_name()) + std::string("_") +
+        std::string(test_info->name()) + std::string(".vcd");
+    auto trace_path = trace_dir / filename;
 
     instance.trace(&traces, 2);
-    traces.open(oss.str().c_str());
+    traces.open(trace_path.string().c_str());
 
     instance.clock_i = 0;
     instance.eval();

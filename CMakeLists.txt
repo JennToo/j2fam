@@ -39,7 +39,11 @@ include(GoogleTest)
 add_executable(test_cpu ${CMAKE_SOURCE_DIR}/test/test_cpu.cpp)
 target_link_libraries(test_cpu PRIVATE gtest_main)
 target_include_directories(test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/test/lib)
-target_compile_definitions(test_cpu PRIVATE PAYLOADS_DIRECTORY="${CMAKE_BINARY_DIR}/test/payloads")
+target_compile_definitions(
+    test_cpu PRIVATE
+    PAYLOADS_DIRECTORY="${CMAKE_BINARY_DIR}/test/payloads"
+    VCD_TRACE_OUTPUT="${CMAKE_BINARY_DIR}/vcds/"
+)
 verilate(test_cpu SOURCES src/cpu.sv TRACE VERILATOR_ARGS -DSIMULATION)
 add_dependencies(test_cpu test-payloads)
 gtest_discover_tests(test_cpu)
