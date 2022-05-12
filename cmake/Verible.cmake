@@ -1,10 +1,9 @@
 FetchContent_Declare(
     verible
-    URL https://github.com/chipsalliance/verible/releases/download/v0.0-2135-gb534c1fe/verible-v0.0-2135-gb534c1fe-Ubuntu-20.04-focal-x86_64.tar.gz
-    URL_HASH SHA256=3973e05cbcf0a17eeb3b0546f899aec9713144c61420d95228ab16188f6ee0be
+    URL https://github.com/chipsalliance/verible/releases/download/v0.0-2148-g0b02dd52/verible-v0.0-2148-g0b02dd52-Ubuntu-20.04-focal-x86_64.tar.gz
+    URL_HASH SHA256=0ea734203cbbd6b258c213f9533cce30ca960c7f1889392d68484ac09d89c1e7
 )
 FetchContent_MakeAvailable(verible)
-
 
 function(verible_check)
     cmake_parse_arguments(VERIBLE "" "RULESET" "SOURCES" ${ARGN})
