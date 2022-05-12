@@ -17,9 +17,9 @@ include(gtest)
 include(Trellis)
 include(Verible)
 
-project(j2fam)
-
 add_subdirectory(cmake/Format.cmake)
+
+project(j2fam)
 
 file(GLOB TEST_PAYLOADS RELATIVE ${CMAKE_SOURCE_DIR} test/payloads/*.s)
 foreach(PAYLOAD ${TEST_PAYLOADS})
@@ -36,7 +36,13 @@ add_custom_target(test-payloads ALL true DEPENDS ${PAYLOAD_BINARIES})
 find_package(verilator REQUIRED HINTS ${osscadsuite_SOURCE_DIR}/share/verilator)
 
 include(GoogleTest)
-add_executable(test_cpu ${CMAKE_SOURCE_DIR}/test/test_cpu.cpp)
+add_executable(test_cpu
+    test/cpu/bus_emulator.cpp
+    test/cpu/fixture.hpp
+    test/cpu/basic_tests.cpp
+    test/cpu/fixture.cpp
+    test/cpu/bus_emulator.hpp
+)
 target_link_libraries(test_cpu PRIVATE gtest_main)
 target_include_directories(test_cpu PRIVATE ${CMAKE_SOURCE_DIR}/test/lib)
 target_compile_definitions(
