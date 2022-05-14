@@ -111,13 +111,6 @@ module cpu #(
   logic new_carry;
 
   // Control signals
-  logic accumulator_to_alu_input_a;
-  logic accumulator_to_data;
-  logic accumulator_to_index_x;
-  logic accumulator_to_index_y;
-  logic adder_hold_to_accumulator;
-  logic adder_hold_to_address_low;
-  logic adder_hold_to_alu_input_a;
   logic alu_carry_flag;
   logic alu_invert_b;
   logic alu_result_to_adder_hold;
@@ -125,78 +118,42 @@ module cpu #(
   logic bus_read;
   logic bus_write;
   logic data_status_to_status;
-  logic data_to_accumulator;
-  logic data_to_adder_hold;
-  logic data_to_address_high;
-  logic data_to_address_low;
-  logic data_to_alu_input_b;
-  logic data_to_index_x;
-  logic data_to_index_y;
-  logic data_to_next_instruction;
-  logic data_to_pc_high;
-  logic data_to_pc_low;
-  logic fd_to_address_low;
-  logic ff_to_address_high;
   logic increment_pc_to_address;
   logic increment_pc_to_pc;
-  logic index_x_to_accumulator;
-  logic index_x_to_stack_pointer;
-  logic index_y_to_accumulator;
-  logic one_to_alu_input_b;
-  logic one_to_carry;
-  logic pc_low_to_address_low;
-  logic stack_pointer_to_index_x;
-  logic x_to_alu_input_a;
-  logic zero_to_address_high;
-  logic zero_to_carry;
 
   always_comb begin
+    next_accumulator = accumulator;
+    next_adder_hold = adder_hold;
+    next_address_high = address_high;
+    next_address_low = address_low;
+    next_index_x = index_x;
+    next_index_y = index_y;
+    next_instruction = current_instruction;
+    next_output_data = data_output;
+    next_program_counter_high = program_counter_high;
+    next_program_counter_low = program_counter_low;
+    next_stack_pointer = stack_pointer;
+    next_status = status;
+    next_instruction_stage = instruction_stage;
+
     // Control signals
-    accumulator_to_alu_input_a = 0;
-    accumulator_to_data = 0;
-    accumulator_to_index_x = 0;
-    accumulator_to_index_y = 0;
-    adder_hold_to_accumulator = 0;
-    adder_hold_to_address_low = 0;
-    adder_hold_to_alu_input_a = 0;
     alu_invert_b = 0;
     alu_result_to_adder_hold = 0;
     alu_status_to_status = 0;
     bus_read = 0;
     bus_write = 0;
     data_status_to_status = 0;
-    data_to_accumulator = 0;
-    data_to_adder_hold = 0;
-    data_to_address_high = 0;
-    data_to_address_low = 0;
-    data_to_alu_input_b = 0;
-    data_to_index_x = 0;
-    data_to_index_y = 0;
-    data_to_next_instruction = 0;
-    data_to_pc_high = 0;
-    data_to_pc_low = 0;
-    fd_to_address_low = 0;
-    ff_to_address_high = 0;
     increment_pc_to_address = 0;
     increment_pc_to_pc = 0;
-    index_x_to_accumulator = 0;
-    index_x_to_stack_pointer = 0;
-    index_y_to_accumulator = 0;
-    one_to_alu_input_b = 0;
-    one_to_carry = 0;
-    pc_low_to_address_low = 0;
-    stack_pointer_to_index_x = 0;
-    x_to_alu_input_a = 0;
-    zero_to_address_high = 0;
-    zero_to_carry = 0;
 
-    next_instruction_stage = instruction_stage;
+    alu_input_a = 0;
+    alu_input_b = 0;
 
     case (instruction_stage)
       0: begin
         if (data_valid_i) begin
-          next_instruction_stage   = 1;
-          data_to_next_instruction = 1;
+          next_instruction_stage = 1;
+          next_instruction = data_i;
           case (data_i)
             `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA, `OP_TXS, `OP_TSX, `OP_SEC, `OP_CLC: begin
             end
@@ -210,7 +167,7 @@ module cpu #(
 
         case (current_instruction)
           `OP_ADC_IMM, `OP_SBC_IMM: begin
-            adder_hold_to_accumulator = 1;
+            next_accumulator = adder_hold;
           end
 
           default: begin
@@ -231,14 +188,14 @@ module cpu #(
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
-            one_to_carry = 1;
+            next_status[`STATUS_CARRY] = 1;
           end
           `OP_CLC: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
-            zero_to_carry = 1;
+            next_status[`STATUS_CARRY] = 0;
           end
           `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
             if (data_valid_i) begin
@@ -248,9 +205,11 @@ module cpu #(
               bus_read = 1;
               data_status_to_status = 1;
               case (current_instruction)
-                `OP_LDA_IMM: data_to_accumulator = 1;
-                `OP_LDX_IMM: data_to_index_x = 1;
-                `OP_LDY_IMM: data_to_index_y = 1;
+                `OP_LDA_IMM: next_accumulator = data_i;
+                `OP_LDX_IMM: next_index_x = data_i;
+
+                `OP_LDY_IMM: next_index_y = data_i;
+
                 default: begin
                 end
               endcase
@@ -259,9 +218,9 @@ module cpu #(
           `OP_STA_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              data_to_address_low = 1;
-              zero_to_address_high = 1;
-              accumulator_to_data = 1;
+              next_address_low = data_i;
+              next_address_high = 0;
+              next_output_data = accumulator;
               bus_write = 1;
             end
           end
@@ -271,8 +230,8 @@ module cpu #(
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
               bus_read = 1;
-              accumulator_to_alu_input_a = 1;
-              data_to_alu_input_b = 1;
+              alu_input_a = accumulator;
+              alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
               alu_status_to_status = 1;
             end
@@ -283,8 +242,8 @@ module cpu #(
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
               bus_read = 1;
-              accumulator_to_alu_input_a = 1;
-              data_to_alu_input_b = 1;
+              alu_input_a = accumulator;
+              alu_input_b = data_i;
               alu_invert_b = 1;
               alu_result_to_adder_hold = 1;
             end
@@ -292,23 +251,23 @@ module cpu #(
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              zero_to_address_high = 1;
-              data_to_address_low = 1;
+              next_address_high = 0;
+              next_address_low = data_i;
               bus_read = 1;
             end
           end
           `OP_LDA_ZPX, `OP_LDA_IDX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              x_to_alu_input_a = 1;
-              data_to_alu_input_b = 1;
+              alu_input_a = index_x;
+              alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
             end
           end
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              data_to_adder_hold = 1;
+              next_adder_hold = data_i;
               increment_pc_to_address = 1;
               bus_read = 1;
             end
@@ -316,49 +275,49 @@ module cpu #(
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
-              data_to_pc_low = 1;
+              next_program_counter_low = data_i;
               increment_pc_to_address = 1;
               bus_read = 1;
             end
           end
           `OP_TAX: begin
             next_instruction_stage = 0;
-            accumulator_to_index_x = 1;
+            next_index_x = accumulator;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
           `OP_TAY: begin
             next_instruction_stage = 0;
-            accumulator_to_index_y = 1;
+            next_index_y = accumulator;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
           `OP_TXA: begin
             next_instruction_stage = 0;
-            index_x_to_accumulator = 1;
+            next_accumulator = index_x;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
           `OP_TYA: begin
             next_instruction_stage = 0;
-            index_y_to_accumulator = 1;
+            next_accumulator = index_y;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
           `OP_TXS: begin
             next_instruction_stage = 0;
-            index_x_to_stack_pointer = 1;
+            next_stack_pointer = index_x;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
           `OP_TSX: begin
             next_instruction_stage = 0;
-            stack_pointer_to_index_x = 1;
+            next_index_x = stack_pointer;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
@@ -378,28 +337,30 @@ module cpu #(
             bus_read = 1;
             data_status_to_status = 1;
             case (current_instruction)
-              `OP_LDA_ZP: data_to_accumulator = 1;
-              `OP_LDX_ZP: data_to_index_x = 1;
-              `OP_LDY_ZP: data_to_index_y = 1;
+              `OP_LDA_ZP: next_accumulator = data_i;
+              `OP_LDX_ZP: next_index_x = data_i;
+
+              `OP_LDY_ZP: next_index_y = data_i;
+
               default: begin
               end
             endcase
           end
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
-            adder_hold_to_address_low = 1;
-            zero_to_address_high = 1;
+            next_address_low = adder_hold;
+            next_address_high = 0;
             bus_read = 1;
           end
           `OP_LDA_IDX: begin
             next_instruction_stage = 3;
             // Read low byte of indirect address
-            adder_hold_to_address_low = 1;
-            zero_to_address_high = 1;
+            next_address_low = adder_hold;
+            next_address_high = 0;
             bus_read = 1;
             // Prepare for high byte access
-            one_to_alu_input_b = 1;
-            adder_hold_to_alu_input_a = 1;
+            alu_input_b = 1;
+            alu_input_a = adder_hold;
             alu_result_to_adder_hold = 1;
           end
           `OP_STA_ZP: begin
@@ -411,19 +372,18 @@ module cpu #(
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 3;
-              adder_hold_to_address_low = 1;
-              data_to_address_high = 1;
+              next_address_low = adder_hold;
+              next_address_high = data_i;
               increment_pc_to_pc = 1;
-              increment_pc_to_address = 1;
               bus_read = 1;
             end
           end
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
-              data_to_pc_high = 1;
-              pc_low_to_address_low = 1;
-              data_to_address_high = 1;
+              next_program_counter_high = data_i;
+              next_address_low = program_counter_low;
+              next_address_high = data_i;
               bus_read = 1;
             end
           end
@@ -439,7 +399,7 @@ module cpu #(
               next_instruction_stage = 0;
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
-              data_to_accumulator = 1;
+              next_accumulator = data_i;
               bus_read = 1;
             end
           end
@@ -450,7 +410,8 @@ module cpu #(
             bus_read = 1;
             data_status_to_status = 1;
             case (current_instruction)
-              `OP_LDA_ZPX: data_to_accumulator = 1;
+              `OP_LDA_ZPX: next_accumulator = data_i;
+
               default begin
               end
             endcase
@@ -458,11 +419,11 @@ module cpu #(
           `OP_LDA_IDX: begin
             next_instruction_stage = 4;
             // Read second byte of indirect address
-            adder_hold_to_address_low = 1;
-            zero_to_address_high = 1;
+            next_address_low = adder_hold;
+            next_address_high = 0;
             bus_read = 1;
             // Save first byte of indirect address
-            data_to_adder_hold = 1;
+            next_adder_hold = data_i;
           end
 
           default begin
@@ -474,8 +435,8 @@ module cpu #(
         case (current_instruction)
           `OP_LDA_IDX: begin
             next_instruction_stage = 5;
-            adder_hold_to_address_low = 1;
-            data_to_address_high = 1;
+            next_address_low = adder_hold;
+            next_address_high = data_i;
             bus_read = 1;
           end
           default begin
@@ -490,7 +451,7 @@ module cpu #(
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
-            data_to_accumulator = 1;
+            next_accumulator = data_i;
           end
           default begin
           end
@@ -500,9 +461,9 @@ module cpu #(
       `RESET_STAGE_1: begin
         if (data_valid_i == 1) begin
           next_instruction_stage = `RESET_STAGE_2;
-          data_to_pc_low = 1;
-          ff_to_address_high = 1;
-          fd_to_address_low = 1;
+          next_program_counter_low = data_i;
+          next_address_high = 8'hFF;
+          next_address_low = 8'hFD;
           bus_read = 1;
         end
       end
@@ -510,46 +471,22 @@ module cpu #(
       `RESET_STAGE_2: begin
         if (data_valid_i == 1) begin
           next_instruction_stage = 0;
-          data_to_pc_high = 1;
-          pc_low_to_address_low = 1;
-          data_to_address_high = 1;
+          next_program_counter_high = data_i;
+          next_address_low = program_counter_low;
+          next_address_high = data_i;
           bus_read = 1;
         end
       end
       default begin
       end
     endcase
-  end
 
-
-  // Data status flags computation
-  always_comb begin
     data_status = 0;
     data_status[`STATUS_ZERO] = (data_i == 0);
     data_status[`STATUS_NEGATIVE] = data_i[7];
-  end
 
-  // ALU
-  always_comb begin
-    alu_input_a = 0;
-    alu_input_b = 0;
     alu_carry_flag = status[`STATUS_CARRY];
 
-    if (accumulator_to_alu_input_a) begin
-      alu_input_a = accumulator;
-    end
-    if (x_to_alu_input_a) begin
-      alu_input_a = index_x;
-    end
-    if (data_to_alu_input_b) begin
-      alu_input_b = data_i;
-    end
-    if (adder_hold_to_alu_input_a) begin
-      alu_input_a = adder_hold;
-    end
-    if (one_to_alu_input_b) begin
-      alu_input_b = 1;
-    end
     if (alu_invert_b) begin
       alu_input_b = ~alu_input_b;
       alu_carry_flag = ~alu_carry_flag;
@@ -562,55 +499,12 @@ module cpu #(
     alu_result_status[`STATUS_ZERO] = (alu_result == 0);
     // TODO
     alu_result_status[`STATUS_OVERFLOW] = 0;
-  end
 
-  // Register write sorting
-  always_comb begin
-    next_accumulator = accumulator;
-    next_adder_hold = adder_hold;
-    next_address_high = address_high;
-    next_address_low = address_low;
-    next_index_x = index_x;
-    next_index_y = index_y;
-    next_instruction = current_instruction;
-    next_output_data = data_output;
-    next_program_counter_high = program_counter_high;
-    next_program_counter_low = program_counter_low;
-    next_stack_pointer = stack_pointer;
-    next_status = status;
-
-    if (data_to_accumulator) begin
-      next_accumulator = data_i;
-    end
-    if (data_to_index_x) begin
-      next_index_x = data_i;
-    end
-    if (data_to_index_y) begin
-      next_index_y = data_i;
-    end
-    if (zero_to_address_high) begin
-      next_address_high = 0;
-    end
-    if (data_to_address_low) begin
-      next_address_low = data_i;
-    end
-    if (data_to_address_high) begin
-      next_address_high = data_i;
-    end
     if (alu_status_to_status) begin
       next_status = alu_result_status;
     end
     if (data_status_to_status) begin
       next_status = data_status;
-    end
-    if (data_to_pc_low) begin
-      next_program_counter_low = data_i;
-    end
-    if (data_to_pc_high) begin
-      next_program_counter_high = data_i;
-    end
-    if (pc_low_to_address_low) begin
-      next_address_low = program_counter_low;
     end
     if (increment_pc_to_address) begin
       next_address_low  = incremented_program_counter[7:0];
@@ -620,53 +514,8 @@ module cpu #(
       next_program_counter_low  = incremented_program_counter[7:0];
       next_program_counter_high = incremented_program_counter[15:8];
     end
-    if (ff_to_address_high) begin
-      next_address_high = 8'hFF;
-    end
-    if (fd_to_address_low) begin
-      next_address_low = 8'hFD;
-    end
-    if (data_to_adder_hold) begin
-      next_adder_hold = data_i;
-    end
-    if (adder_hold_to_address_low) begin
-      next_address_low = adder_hold;
-    end
-    if (data_to_next_instruction) begin
-      next_instruction = data_i;
-    end
-    if (adder_hold_to_accumulator) begin
-      next_accumulator = adder_hold;
-    end
     if (alu_result_to_adder_hold) begin
       next_adder_hold = alu_result;
-    end
-    if (accumulator_to_data) begin
-      next_output_data = accumulator;
-    end
-    if (accumulator_to_index_x) begin
-      next_index_x = accumulator;
-    end
-    if (accumulator_to_index_y) begin
-      next_index_y = accumulator;
-    end
-    if (index_x_to_accumulator) begin
-      next_accumulator = index_x;
-    end
-    if (index_y_to_accumulator) begin
-      next_accumulator = index_y;
-    end
-    if (stack_pointer_to_index_x) begin
-      next_index_x = stack_pointer;
-    end
-    if (index_x_to_stack_pointer) begin
-      next_stack_pointer = index_x;
-    end
-    if (one_to_carry) begin
-      next_status[`STATUS_CARRY] = 1;
-    end
-    if (zero_to_carry) begin
-      next_status[`STATUS_CARRY] = 0;
     end
   end
 

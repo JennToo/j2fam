@@ -52,7 +52,7 @@ target_compile_definitions(
     PAYLOADS_DIRECTORY="${CMAKE_BINARY_DIR}/test/payloads"
     VCD_TRACE_OUTPUT="${CMAKE_BINARY_DIR}/vcds/"
 )
-verilate(test_cpu SOURCES src/cpu.sv TRACE VERILATOR_ARGS -DSIMULATION)
+verilate(test_cpu SOURCES src/cpu.sv TRACE VERILATOR_ARGS -DSIMULATION -Wall)
 add_dependencies(test_cpu test-payloads)
 gtest_discover_tests(test_cpu)
 
