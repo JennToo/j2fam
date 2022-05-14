@@ -7,5 +7,5 @@ struct StatusFlags {
 
   bool carry;
 
-  inline StatusFlags(std::uint8_t raw) : raw(raw) { carry = (raw & 0b1) == 0; }
+  inline StatusFlags(std::uint8_t raw) : raw(raw) { carry = (raw & 0b1) != 0; }
 };

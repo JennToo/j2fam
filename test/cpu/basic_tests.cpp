@@ -1,4 +1,5 @@
 #include "fixture.hpp"
+#include "flags.hpp"
 
 #include <gtest/gtest.h>
 
@@ -155,4 +156,19 @@ TEST_F(CpuTest, TSX) {
   EXPECT_TRUE(bus_emulator->test_clock_ready_count ==
               2 + 2 + 2 + 2 + RESET_CYCLE_OVERHEAD);
   EXPECT_TRUE(driver->instance.stack_pointer_o == 42);
+}
+
+TEST_F(CpuTest, CLC) {
+  bus_emulator->load_file(0x7FF0, "test_clc");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count,
+            2 + 2 + 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_FALSE(StatusFlags(driver->instance.status_o).carry);
+}
+
+TEST_F(CpuTest, SEC) {
+  bus_emulator->load_file(0x7FF0, "test_sec");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_TRUE(StatusFlags(driver->instance.status_o).carry);
 }

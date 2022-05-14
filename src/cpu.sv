@@ -1,4 +1,5 @@
 `define OP_ADC_IMM 8'h69
+`define OP_CLC 8'h18
 `define OP_JMP_ABS 8'h4C
 `define OP_LDA_ABS 8'hAD
 `define OP_LDA_IDX 8'hA1
@@ -11,6 +12,7 @@
 `define OP_LDY_ZP 8'hA4
 `define OP_NOP 8'hEA
 `define OP_SBC_IMM 8'hE9
+`define OP_SEC 8'h38
 `define OP_STA_ZP 8'h85
 `define OP_TAX 8'hAA
 `define OP_TAY 8'hA8
@@ -141,10 +143,12 @@ module cpu #(
   logic index_x_to_stack_pointer;
   logic index_y_to_accumulator;
   logic one_to_alu_input_b;
+  logic one_to_carry;
   logic pc_low_to_address_low;
   logic stack_pointer_to_index_x;
   logic x_to_alu_input_a;
   logic zero_to_address_high;
+  logic zero_to_carry;
 
   always_comb begin
     // Control signals
@@ -179,10 +183,12 @@ module cpu #(
     index_x_to_stack_pointer = 0;
     index_y_to_accumulator = 0;
     one_to_alu_input_b = 0;
+    one_to_carry = 0;
     pc_low_to_address_low = 0;
     stack_pointer_to_index_x = 0;
     x_to_alu_input_a = 0;
     zero_to_address_high = 0;
+    zero_to_carry = 0;
 
     next_instruction_stage = instruction_stage;
 
@@ -192,7 +198,7 @@ module cpu #(
           next_instruction_stage   = 1;
           data_to_next_instruction = 1;
           case (data_i)
-            `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA, `OP_TXS, `OP_TSX: begin
+            `OP_NOP, `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA, `OP_TXS, `OP_TSX, `OP_SEC, `OP_CLC: begin
             end
             default begin
               increment_pc_to_pc = 1;
@@ -219,6 +225,20 @@ module cpu #(
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
+          end
+          `OP_SEC: begin
+            next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+            one_to_carry = 1;
+          end
+          `OP_CLC: begin
+            next_instruction_stage = 0;
+            increment_pc_to_pc = 1;
+            increment_pc_to_address = 1;
+            bus_read = 1;
+            zero_to_carry = 1;
           end
           `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
             if (data_valid_i) begin
@@ -254,6 +274,7 @@ module cpu #(
               accumulator_to_alu_input_a = 1;
               data_to_alu_input_b = 1;
               alu_result_to_adder_hold = 1;
+              alu_status_to_status = 1;
             end
           end
           `OP_SBC_IMM: begin
@@ -534,7 +555,7 @@ module cpu #(
       alu_carry_flag = ~alu_carry_flag;
     end
 
-    {new_carry, alu_result} = alu_input_a + alu_input_b + {8'b0, alu_carry_flag};
+    {new_carry, alu_result} = {1'b0, alu_input_a} + {1'b0, alu_input_b} + {8'b0, alu_carry_flag};
     alu_result_status = status;
     alu_result_status[`STATUS_CARRY] = new_carry;
     alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
@@ -640,6 +661,12 @@ module cpu #(
     end
     if (index_x_to_stack_pointer) begin
       next_stack_pointer = index_x;
+    end
+    if (one_to_carry) begin
+      next_status[`STATUS_CARRY] = 1;
+    end
+    if (zero_to_carry) begin
+      next_status[`STATUS_CARRY] = 0;
     end
   end
 

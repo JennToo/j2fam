@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -ex
+
+export CTEST_PARALLEL_LEVEL=8
+
+mkdir -p build
+cd build
+
+cmake ..
+make -j8 fix-format verible-format
+make -j8 verible-lint
+make -j8 all
+ctest --output-on-failure
