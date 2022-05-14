@@ -88,11 +88,27 @@ TEST_F(CpuTest, ADC_imm) {
   EXPECT_TRUE(driver->instance.accumulator_o == 216);
 }
 
+TEST_F(CpuTest, ADC_abs) {
+  bus_emulator->load_file(0x7FF0, "test_adc_abs");
+  run_to_end(120);
+  EXPECT_TRUE(bus_emulator->test_clock_ready_count ==
+              2 + 4 + RESET_CYCLE_OVERHEAD);
+  EXPECT_TRUE(driver->instance.accumulator_o == 216);
+}
+
 TEST_F(CpuTest, SBC_imm) {
   bus_emulator->load_file(0x7FF0, "test_sbc_imm");
   run_to_end(120);
   EXPECT_TRUE(bus_emulator->test_clock_ready_count ==
               2 + 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_TRUE(driver->instance.accumulator_o == 68);
+}
+
+TEST_F(CpuTest, SBC_abs) {
+  bus_emulator->load_file(0x7FF0, "test_sbc_abs");
+  run_to_end(120);
+  EXPECT_TRUE(bus_emulator->test_clock_ready_count ==
+              2 + 4 + RESET_CYCLE_OVERHEAD);
   EXPECT_TRUE(driver->instance.accumulator_o == 68);
 }
 
@@ -180,10 +196,24 @@ TEST_F(CpuTest, CMP_imm) {
   EXPECT_FALSE(StatusFlags(driver->instance.status_o).carry);
 }
 
+TEST_F(CpuTest, CMP_abs) {
+  bus_emulator->load_file(0x7FF0, "test_cmp_abs");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 4 + RESET_CYCLE_OVERHEAD);
+  EXPECT_FALSE(StatusFlags(driver->instance.status_o).carry);
+}
+
 TEST_F(CpuTest, AND_imm) {
   bus_emulator->load_file(0x7FF0, "test_and_imm");
   run_to_end(120);
   EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_EQ(driver->instance.accumulator_o, 0b1000);
+}
+
+TEST_F(CpuTest, AND_abs) {
+  bus_emulator->load_file(0x7FF0, "test_and_abs");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 4 + RESET_CYCLE_OVERHEAD);
   EXPECT_EQ(driver->instance.accumulator_o, 0b1000);
 }
 
@@ -194,9 +224,23 @@ TEST_F(CpuTest, EOR_imm) {
   EXPECT_EQ(driver->instance.accumulator_o, 0b0110);
 }
 
+TEST_F(CpuTest, EOR_abs) {
+  bus_emulator->load_file(0x7FF0, "test_eor_abs");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 4 + RESET_CYCLE_OVERHEAD);
+  EXPECT_EQ(driver->instance.accumulator_o, 0b0110);
+}
+
 TEST_F(CpuTest, ORA_imm) {
   bus_emulator->load_file(0x7FF0, "test_ora_imm");
   run_to_end(120);
   EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_EQ(driver->instance.accumulator_o, 0b1110);
+}
+
+TEST_F(CpuTest, ORA_abs) {
+  bus_emulator->load_file(0x7FF0, "test_ora_abs");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 4 + RESET_CYCLE_OVERHEAD);
   EXPECT_EQ(driver->instance.accumulator_o, 0b1110);
 }

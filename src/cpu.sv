@@ -1,7 +1,11 @@
+`define OP_ADC_ABS 8'h6D
 `define OP_ADC_IMM 8'h69
+`define OP_AND_ABS 8'h2D
 `define OP_AND_IMM 8'h29
 `define OP_CLC 8'h18
+`define OP_CMP_ABS 8'hCD
 `define OP_CMP_IMM 8'hC9
+`define OP_EOR_ABS 8'h4D
 `define OP_EOR_IMM 8'h49
 `define OP_JMP_ABS 8'h4C
 `define OP_LDA_ABS 8'hAD
@@ -14,7 +18,9 @@
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
 `define OP_NOP 8'hEA
+`define OP_ORA_ABS 8'h0D
 `define OP_ORA_IMM 8'h09
+`define OP_SBC_ABS 8'hED
 `define OP_SBC_IMM 8'hE9
 `define OP_SEC 8'h38
 `define OP_STA_ZP 8'h85
@@ -177,7 +183,8 @@ module cpu #(
         end
 
         case (current_instruction)
-          `OP_ADC_IMM, `OP_SBC_IMM, `OP_AND_IMM, `OP_ORA_IMM, `OP_EOR_IMM: begin
+          `OP_ADC_IMM, `OP_SBC_IMM, `OP_AND_IMM, `OP_ORA_IMM, `OP_EOR_IMM, `OP_ADC_ABS,
+          `OP_SBC_ABS, `OP_CMP_ABS, `OP_AND_ABS, `OP_EOR_ABS, `OP_ORA_ABS: begin
             next_accumulator = adder_hold;
           end
 
@@ -267,7 +274,8 @@ module cpu #(
             end
           end
 
-          `OP_LDA_ABS: begin
+          `OP_LDA_ABS, `OP_ADC_ABS, `OP_SBC_ABS, `OP_CMP_ABS, `OP_AND_ABS, `OP_EOR_ABS,
+          `OP_ORA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
               next_adder_hold = data_i;
@@ -352,7 +360,8 @@ module cpu #(
             bus_read = 1;
           end
 
-          `OP_LDA_ABS: begin
+          `OP_LDA_ABS, `OP_ADC_ABS, `OP_SBC_ABS, `OP_CMP_ABS, `OP_AND_ABS, `OP_EOR_ABS,
+          `OP_ORA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 3;
               next_address_low = adder_hold;
@@ -386,6 +395,28 @@ module cpu #(
               increment_pc_to_address = 1;
               next_accumulator = data_i;
               bus_read = 1;
+            end
+          end
+
+          `OP_ADC_ABS, `OP_SBC_ABS, `OP_CMP_ABS, `OP_AND_ABS, `OP_EOR_ABS, `OP_ORA_ABS: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+              case (current_instruction)
+                `OP_ADC_ABS: alu_op = `ALU_OP_ADC;
+                `OP_SBC_ABS: alu_op = `ALU_OP_SBC;
+                `OP_CMP_ABS: alu_op = `ALU_OP_CMP;
+                `OP_AND_ABS: alu_op = `ALU_OP_AND;
+                `OP_EOR_ABS: alu_op = `ALU_OP_EOR;
+                `OP_ORA_ABS: alu_op = `ALU_OP_ORA;
+                default: ;
+              endcase
+              alu_input_a = accumulator;
+              alu_input_b = data_i;
+              alu_result_to_adder_hold = 1;
+              alu_status_to_status = 1;
             end
           end
 
