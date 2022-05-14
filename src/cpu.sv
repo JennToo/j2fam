@@ -182,26 +182,18 @@ module cpu #(
 
       1: begin
         case (current_instruction)
-          `OP_NOP: begin
+          `OP_NOP, `OP_SEC, `OP_CLC: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
+            case (current_instruction)
+              `OP_SEC: next_status[`STATUS_CARRY] = 1;
+              `OP_CLC: next_status[`STATUS_CARRY] = 0;
+              default: ;
+            endcase
           end
-          `OP_SEC: begin
-            next_instruction_stage = 0;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-            next_status[`STATUS_CARRY] = 1;
-          end
-          `OP_CLC: begin
-            next_instruction_stage = 0;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-            next_status[`STATUS_CARRY] = 0;
-          end
+
           `OP_LDA_IMM, `OP_LDX_IMM, `OP_LDY_IMM: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
@@ -212,14 +204,12 @@ module cpu #(
               case (current_instruction)
                 `OP_LDA_IMM: next_accumulator = data_i;
                 `OP_LDX_IMM: next_index_x = data_i;
-
                 `OP_LDY_IMM: next_index_y = data_i;
-
-                default: begin
-                end
+                default: ;
               endcase
             end
           end
+
           `OP_STA_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -229,44 +219,26 @@ module cpu #(
               bus_write = 1;
             end
           end
-          `OP_ADC_IMM: begin
+
+          `OP_ADC_IMM, `OP_SBC_IMM, `OP_CMP_IMM: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
               bus_read = 1;
-              alu_op = `ALU_OP_ADC;
+              case (current_instruction)
+                `OP_ADC_IMM: alu_op = `ALU_OP_ADC;
+                `OP_SBC_IMM: alu_op = `ALU_OP_SBC;
+                `OP_CMP_IMM: alu_op = `ALU_OP_CMP;
+                default: ;
+              endcase
               alu_input_a = accumulator;
               alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
               alu_status_to_status = 1;
             end
           end
-          `OP_SBC_IMM: begin
-            if (data_valid_i) begin
-              next_instruction_stage = 0;
-              increment_pc_to_pc = 1;
-              increment_pc_to_address = 1;
-              bus_read = 1;
-              alu_op = `ALU_OP_SBC;
-              alu_input_a = accumulator;
-              alu_input_b = data_i;
-              alu_result_to_adder_hold = 1;
-            end
-          end
-          `OP_CMP_IMM: begin
-            if (data_valid_i) begin
-              next_instruction_stage = 0;
-              increment_pc_to_pc = 1;
-              increment_pc_to_address = 1;
-              bus_read = 1;
-              alu_op = `ALU_OP_CMP;
-              alu_input_a = accumulator;
-              alu_input_b = data_i;
-              alu_result_to_adder_hold = 1;
-              alu_status_to_status = 1;
-            end
-          end
+
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -275,6 +247,7 @@ module cpu #(
               bus_read = 1;
             end
           end
+
           `OP_LDA_ZPX, `OP_LDA_IDX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -284,6 +257,7 @@ module cpu #(
               alu_result_to_adder_hold = 1;
             end
           end
+
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -292,6 +266,7 @@ module cpu #(
               bus_read = 1;
             end
           end
+
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
@@ -300,47 +275,22 @@ module cpu #(
               bus_read = 1;
             end
           end
-          `OP_TAX: begin
+
+          `OP_TAX, `OP_TAY, `OP_TXA, `OP_TYA, `OP_TXS, `OP_TSX: begin
             next_instruction_stage = 0;
-            next_index_x = accumulator;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
-          end
-          `OP_TAY: begin
-            next_instruction_stage = 0;
-            next_index_y = accumulator;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
-          `OP_TXA: begin
-            next_instruction_stage = 0;
-            next_accumulator = index_x;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
-          `OP_TYA: begin
-            next_instruction_stage = 0;
-            next_accumulator = index_y;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
-          `OP_TXS: begin
-            next_instruction_stage = 0;
-            next_stack_pointer = index_x;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
-          end
-          `OP_TSX: begin
-            next_instruction_stage = 0;
-            next_index_x = stack_pointer;
-            increment_pc_to_pc = 1;
-            increment_pc_to_address = 1;
-            bus_read = 1;
+
+            case (current_instruction)
+              `OP_TAX: next_index_x = accumulator;
+              `OP_TAY: next_index_y = accumulator;
+              `OP_TXA: next_accumulator = index_x;
+              `OP_TYA: next_accumulator = index_y;
+              `OP_TXS: next_stack_pointer = index_x;
+              `OP_TSX: next_index_x = stack_pointer;
+              default: ;
+            endcase
           end
 
           default begin
@@ -366,6 +316,7 @@ module cpu #(
               end
             endcase
           end
+
           `OP_LDA_ZPX: begin
             next_instruction_stage = 3;
             next_address_low = adder_hold;
@@ -384,12 +335,14 @@ module cpu #(
             alu_input_a = adder_hold;
             alu_result_to_adder_hold = 1;
           end
+
           `OP_STA_ZP: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
             increment_pc_to_address = 1;
             bus_read = 1;
           end
+
           `OP_LDA_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 3;
@@ -399,6 +352,7 @@ module cpu #(
               bus_read = 1;
             end
           end
+
           `OP_JMP_ABS: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
@@ -408,6 +362,7 @@ module cpu #(
               bus_read = 1;
             end
           end
+
           default begin
           end
         endcase
@@ -424,6 +379,7 @@ module cpu #(
               bus_read = 1;
             end
           end
+
           `OP_LDA_ZPX: begin
             next_instruction_stage = 0;
             increment_pc_to_pc = 1;
@@ -432,11 +388,10 @@ module cpu #(
             data_status_to_status = 1;
             case (current_instruction)
               `OP_LDA_ZPX: next_accumulator = data_i;
-
-              default begin
-              end
+              default: ;
             endcase
           end
+
           `OP_LDA_IDX: begin
             next_instruction_stage = 4;
             // Read second byte of indirect address
@@ -460,6 +415,7 @@ module cpu #(
             next_address_high = data_i;
             bus_read = 1;
           end
+
           default begin
           end
         endcase
@@ -474,6 +430,7 @@ module cpu #(
             bus_read = 1;
             next_accumulator = data_i;
           end
+
           default begin
           end
         endcase
@@ -498,6 +455,7 @@ module cpu #(
           bus_read = 1;
         end
       end
+
       default begin
       end
     endcase
