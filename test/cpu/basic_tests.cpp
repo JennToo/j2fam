@@ -172,3 +172,10 @@ TEST_F(CpuTest, SEC) {
   EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + RESET_CYCLE_OVERHEAD);
   EXPECT_TRUE(StatusFlags(driver->instance.status_o).carry);
 }
+
+TEST_F(CpuTest, CMP) {
+  bus_emulator->load_file(0x7FF0, "test_cmp_imm");
+  run_to_end(120);
+  EXPECT_EQ(bus_emulator->test_clock_ready_count, 2 + 2 + RESET_CYCLE_OVERHEAD);
+  EXPECT_FALSE(StatusFlags(driver->instance.status_o).carry);
+}

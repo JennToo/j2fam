@@ -1,5 +1,6 @@
 `define OP_ADC_IMM 8'h69
 `define OP_CLC 8'h18
+`define OP_CMP_IMM 8'hC9
 `define OP_JMP_ABS 8'h4C
 `define OP_LDA_ABS 8'hAD
 `define OP_LDA_IDX 8'hA1
@@ -251,6 +252,19 @@ module cpu #(
               alu_input_a = accumulator;
               alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
+            end
+          end
+          `OP_CMP_IMM: begin
+            if (data_valid_i) begin
+              next_instruction_stage = 0;
+              increment_pc_to_pc = 1;
+              increment_pc_to_address = 1;
+              bus_read = 1;
+              alu_op = `ALU_OP_CMP;
+              alu_input_a = accumulator;
+              alu_input_b = data_i;
+              alu_result_to_adder_hold = 1;
+              alu_status_to_status = 1;
             end
           end
           `OP_LDA_ZP, `OP_LDX_ZP, `OP_LDY_ZP: begin
@@ -520,6 +534,15 @@ module cpu #(
         alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
         alu_result_status[`STATUS_ZERO] = (alu_result == 0);
         // TODO
+        alu_result_status[`STATUS_OVERFLOW] = 0;
+      end
+      `ALU_OP_CMP: begin
+        {new_carry, alu_result} = {1'b0, alu_input_a} + {1'b0, alu_input_b} + {9'b000000001};
+        alu_result_status = status;
+        alu_result_status[`STATUS_CARRY] = new_carry;
+        alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
+        alu_result_status[`STATUS_ZERO] = (alu_result == 0);
+        // TODO: Is this set for CMPs?
         alu_result_status[`STATUS_OVERFLOW] = 0;
       end
       default begin
