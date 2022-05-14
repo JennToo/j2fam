@@ -26,6 +26,11 @@
 `define STATUS_CARRY 0
 `define STATUS_OVERFLOW 6
 
+`define ALU_OP_ADC 0
+`define ALU_OP_SBC 1
+`define ALU_OP_ADD 2
+`define ALU_OP_CMP 3
+
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
 ) (
@@ -95,6 +100,7 @@ module cpu #(
   logic [7:0] alu_input_b;
   logic [7:0] alu_result;
   logic [7:0] alu_result_status;
+  logic [2:0] alu_op;
   logic [7:0] data_status;
   logic [7:0] next_accumulator;
   logic [7:0] next_adder_hold;
@@ -111,8 +117,6 @@ module cpu #(
   logic new_carry;
 
   // Control signals
-  logic alu_carry_flag;
-  logic alu_invert_b;
   logic alu_result_to_adder_hold;
   logic alu_status_to_status;
   logic bus_read;
@@ -137,7 +141,6 @@ module cpu #(
     next_instruction_stage = instruction_stage;
 
     // Control signals
-    alu_invert_b = 0;
     alu_result_to_adder_hold = 0;
     alu_status_to_status = 0;
     bus_read = 0;
@@ -148,6 +151,7 @@ module cpu #(
 
     alu_input_a = 0;
     alu_input_b = 0;
+    alu_op = 0;
 
     case (instruction_stage)
       0: begin
@@ -230,6 +234,7 @@ module cpu #(
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
               bus_read = 1;
+              alu_op = `ALU_OP_ADC;
               alu_input_a = accumulator;
               alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
@@ -242,9 +247,9 @@ module cpu #(
               increment_pc_to_pc = 1;
               increment_pc_to_address = 1;
               bus_read = 1;
+              alu_op = `ALU_OP_SBC;
               alu_input_a = accumulator;
               alu_input_b = data_i;
-              alu_invert_b = 1;
               alu_result_to_adder_hold = 1;
             end
           end
@@ -259,6 +264,7 @@ module cpu #(
           `OP_LDA_ZPX, `OP_LDA_IDX: begin
             if (data_valid_i) begin
               next_instruction_stage = 2;
+              alu_op = `ALU_OP_ADD;
               alu_input_a = index_x;
               alu_input_b = data_i;
               alu_result_to_adder_hold = 1;
@@ -359,6 +365,7 @@ module cpu #(
             next_address_high = 0;
             bus_read = 1;
             // Prepare for high byte access
+            alu_op = `ALU_OP_ADD;
             alu_input_b = 1;
             alu_input_a = adder_hold;
             alu_result_to_adder_hold = 1;
@@ -485,20 +492,39 @@ module cpu #(
     data_status[`STATUS_ZERO] = (data_i == 0);
     data_status[`STATUS_NEGATIVE] = data_i[7];
 
-    alu_carry_flag = status[`STATUS_CARRY];
+    alu_result = 0;
+    alu_result_status = 0;
+    new_carry = 0;
 
-    if (alu_invert_b) begin
-      alu_input_b = ~alu_input_b;
-      alu_carry_flag = ~alu_carry_flag;
-    end
-
-    {new_carry, alu_result} = {1'b0, alu_input_a} + {1'b0, alu_input_b} + {8'b0, alu_carry_flag};
-    alu_result_status = status;
-    alu_result_status[`STATUS_CARRY] = new_carry;
-    alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
-    alu_result_status[`STATUS_ZERO] = (alu_result == 0);
-    // TODO
-    alu_result_status[`STATUS_OVERFLOW] = 0;
+    case (alu_op)
+      `ALU_OP_ADD: begin
+        alu_result = alu_input_a + alu_input_b;
+      end
+      `ALU_OP_ADC: begin
+        {new_carry, alu_result} = {1'b0, alu_input_a} +
+            {1'b0, alu_input_b} +
+            {8'b0, status[`STATUS_CARRY]};
+        alu_result_status = status;
+        alu_result_status[`STATUS_CARRY] = new_carry;
+        alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
+        alu_result_status[`STATUS_ZERO] = (alu_result == 0);
+        // TODO
+        alu_result_status[`STATUS_OVERFLOW] = 0;
+      end
+      `ALU_OP_SBC: begin
+        {new_carry, alu_result} = {1'b0, alu_input_a} +
+            {1'b0, ~alu_input_b} +
+            {8'b0,~status[`STATUS_CARRY]};
+        alu_result_status = status;
+        alu_result_status[`STATUS_CARRY] = new_carry;
+        alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
+        alu_result_status[`STATUS_ZERO] = (alu_result == 0);
+        // TODO
+        alu_result_status[`STATUS_OVERFLOW] = 0;
+      end
+      default begin
+      end
+    endcase
 
     if (alu_status_to_status) begin
       next_status = alu_result_status;
