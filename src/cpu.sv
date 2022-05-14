@@ -1,6 +1,8 @@
 `define OP_ADC_IMM 8'h69
+`define OP_AND_IMM 8'h29
 `define OP_CLC 8'h18
 `define OP_CMP_IMM 8'hC9
+`define OP_EOR_IMM 8'h49
 `define OP_JMP_ABS 8'h4C
 `define OP_LDA_ABS 8'hAD
 `define OP_LDA_IDX 8'hA1
@@ -12,6 +14,7 @@
 `define OP_LDY_IMM 8'hA0
 `define OP_LDY_ZP 8'hA4
 `define OP_NOP 8'hEA
+`define OP_ORA_IMM 8'h09
 `define OP_SBC_IMM 8'hE9
 `define OP_SEC 8'h38
 `define OP_STA_ZP 8'h85
@@ -31,6 +34,9 @@
 `define ALU_OP_SBC 1
 `define ALU_OP_ADD 2
 `define ALU_OP_CMP 3
+`define ALU_OP_AND 4
+`define ALU_OP_EOR 5
+`define ALU_OP_ORA 6
 
 module cpu #(
     parameter unsigned CLOCK_DIVIDER = 12
@@ -171,7 +177,7 @@ module cpu #(
         end
 
         case (current_instruction)
-          `OP_ADC_IMM, `OP_SBC_IMM: begin
+          `OP_ADC_IMM, `OP_SBC_IMM, `OP_AND_IMM, `OP_ORA_IMM, `OP_EOR_IMM: begin
             next_accumulator = adder_hold;
           end
 
@@ -220,7 +226,7 @@ module cpu #(
             end
           end
 
-          `OP_ADC_IMM, `OP_SBC_IMM, `OP_CMP_IMM: begin
+          `OP_ADC_IMM, `OP_SBC_IMM, `OP_CMP_IMM, `OP_AND_IMM, `OP_EOR_IMM, `OP_ORA_IMM: begin
             if (data_valid_i) begin
               next_instruction_stage = 0;
               increment_pc_to_pc = 1;
@@ -230,6 +236,9 @@ module cpu #(
                 `OP_ADC_IMM: alu_op = `ALU_OP_ADC;
                 `OP_SBC_IMM: alu_op = `ALU_OP_SBC;
                 `OP_CMP_IMM: alu_op = `ALU_OP_CMP;
+                `OP_AND_IMM: alu_op = `ALU_OP_AND;
+                `OP_EOR_IMM: alu_op = `ALU_OP_EOR;
+                `OP_ORA_IMM: alu_op = `ALU_OP_ORA;
                 default: ;
               endcase
               alu_input_a = accumulator;
@@ -472,6 +481,7 @@ module cpu #(
       `ALU_OP_ADD: begin
         alu_result = alu_input_a + alu_input_b;
       end
+
       `ALU_OP_ADC: begin
         {new_carry, alu_result} = {1'b0, alu_input_a} +
             {1'b0, alu_input_b} +
@@ -483,6 +493,7 @@ module cpu #(
         // TODO
         alu_result_status[`STATUS_OVERFLOW] = 0;
       end
+
       `ALU_OP_SBC: begin
         {new_carry, alu_result} = {1'b0, alu_input_a} +
             {1'b0, ~alu_input_b} +
@@ -494,6 +505,7 @@ module cpu #(
         // TODO
         alu_result_status[`STATUS_OVERFLOW] = 0;
       end
+
       `ALU_OP_CMP: begin
         {new_carry, alu_result} = {1'b0, alu_input_a} + {1'b0, alu_input_b} + {9'b000000001};
         alu_result_status = status;
@@ -503,6 +515,19 @@ module cpu #(
         // TODO: Is this set for CMPs?
         alu_result_status[`STATUS_OVERFLOW] = 0;
       end
+
+      `ALU_OP_AND, `ALU_OP_EOR, `ALU_OP_ORA: begin
+        case (alu_op)
+          `ALU_OP_AND: alu_result = alu_input_a & alu_input_b;
+          `ALU_OP_EOR: alu_result = alu_input_a ^ alu_input_b;
+          `ALU_OP_ORA: alu_result = alu_input_a | alu_input_b;
+          default: ;
+        endcase
+        alu_result_status = status;
+        alu_result_status[`STATUS_NEGATIVE] = alu_result[7];
+        alu_result_status[`STATUS_ZERO] = (alu_result == 0);
+      end
+
       default begin
       end
     endcase
