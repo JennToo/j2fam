@@ -1,0 +1,22 @@
+on: [push]
+
+name: CI
+
+jobs:
+  build_and_test:
+    name: Build and Test
+    runs-on: ubuntu-22.04
+    env:
+      CTEST_PARALLEL_LEVEL: 8
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - run: sudo apt-get install -y cmake
+      - run: cmake -S . -B build
+      - run: make -C build -j2 check-format
+      - run: make -C build -j2 verible-lint
+      - run: make -C build -j2 test-payloads
+      - run: make -C build -j2 ulx3s-bitstream
+      - run: make -C build -j2 all
+      - run: make -C build -j2 test
